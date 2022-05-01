@@ -1,0 +1,2478 @@
+
+
+/// <summary>
+/// Visitor Management Namespace
+/// </summary>
+namespace VisitorManagement
+{
+    using System;
+    using System.Collections;
+    using System.Collections.Generic;
+    using System.Configuration;
+    using System.Data;
+    using System.Globalization;
+    using System.Linq;
+    using System.Net;
+    using System.Reflection;
+    using System.Security;
+    using System.Web;
+    using System.Web.Configuration;
+    using System.Web.Script.Services;
+    using System.Web.Services;
+    using System.Web.UI;
+    using System.Web.UI.WebControls;
+    using Newtonsoft.Json;
+    using VisitorManagement.Common;
+    using VisitorManagement.OneCommUAT;
+    using VMSBusinessEntity;
+    using XSS = CAS.Security.Application.EncodeHelper;
+
+    /// <summary>
+    /// Home Page class
+    /// </summary>
+    /// <code>
+    /// Default Page class for VMS
+    /// </code>
+    public partial class HomePage : System.Web.UI.Page
+    {
+        /// <summary>
+        /// Connection to DAL Class
+        /// </summary>
+        private Common.DALClass objDal = new Common.DALClass();
+
+        public string AlertMessage { get; set; }
+
+        /// <summary>
+        /// Get Associate Details
+        /// </summary>
+        /// <param name="text">Search Text</param>
+        /// <returns>text String</returns>
+        [WebMethod]
+        public static string GetAssociateDetails(string text)
+        {
+            DALClass objDal = new DALClass();
+            string status = string.Empty;
+            DataTable dt = objDal.GetAssciateDetails(text);
+            List<string> datastring = new List<string>();
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                datastring.Add(Convert.ToString(dt.Rows[i].ItemArray[0]));
+            }
+
+            status = JsonConvert.SerializeObject(datastring, Formatting.Indented);
+            return status;
+        }
+
+
+        /// <summary>
+        /// Get Associate Details
+        /// </summary>     
+        /// <returns>text String</returns>
+        [WebMethod]
+        public static void SetSessionAlertMessage()
+        {
+            HttpContext.Current.Session["Session_AlertMessage"] = "N";
+        }
+
+        /// <summary>
+        /// Cancel Raised Request
+        /// </summary>
+        /// <param name="requestID">request ID</param>
+        /// <param name="vistorID">Visitor ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string CancelRequest(string requestID, string vistorID)
+        {
+            int? successSubmission = 0;
+            int request = 0;
+            DALClass objDal = new DALClass();
+            string status = string.Empty;
+            HomePage home = new HomePage();
+            ////DateTime startDate = DateTime.Now;
+            ////DateTime endDate = DateTime.Now;
+            ////VMSUtility mail = new VMSUtility();
+            DALClass.PropertiesDC propertiesDC = new DALClass.PropertiesDC();
+            propertiesDC = objDal.GetVisitRequestDetails(Convert.ToInt32(vistorID));
+            string hdnParentReferenceID = propertiesDC.VisitorRequestProperty.ParentReferenceId.ToString().Trim();
+            ////VMSBusinessEntity.VisitorMaster[] visitorMasterEntityArray = null;
+            ////VMSBusinessEntity.VisitorRequest visitorRequestEntity = new VMSBusinessEntity.VisitorRequest();
+            ////string userId = Common.Common.UserId();
+            ////DataTable getUserDetails = objDal.GetUserDetails(userId);
+            if (propertiesDC.VisitorRequestProperty.BulkUpload == true)
+            {
+                DataTable dt = new DataTable();
+                dt = objDal.GetBulkInterviewCandidateDetails(Convert.ToInt32(hdnParentReferenceID));
+                dt.Rows[0]["Entries"].ToString();
+                int counter = 0;
+                ////visitorMasterEntityArray = home.GetVisitorMasterList();
+                ////visitorRequestEntity = home.GetVisitorRequest();
+                ////foreach (VMSBusinessEntity.VisitorMaster visitorMasterobj in visitorMasterEntityArray)
+                ////{                    
+                successSubmission = objDal.CancelRequest(Convert.ToInt32(dt.Rows[counter]["RequestID"].ToString()));
+                ////    counter++;                   
+                ////}
+
+                if (successSubmission.Equals(1))
+                {
+                    ScriptManager.RegisterStartupScript(home, home.GetType(), "CancelAlert", "CommonUtils.ShowAlertMessage('The Visitor Request could not be cancelled.', 'Error');", true);
+                }
+                else
+                {
+                    CancelMail(vistorID, requestID);
+                    ////DataTable dtlocation = new DataTable();
+                    objDal.GetLocationDetailsById(propertiesDC.VisitorRequestProperty.RequestID.ToString());
+                    ////string strCity = Convert.ToString(dtlocation.Rows[0]["City"]);
+                    ////string strFacility = Convert.ToString(dtlocation.Rows[0]["Facility"]);                   
+                    ScriptManager.RegisterStartupScript(home, home.GetType(), "CancelSuccess", "CommonUtils.ShowAlertMessage('The Visitor Request is cancelled', 'Success', null, function(){window.location.href = 'NewTrack.aspx'; } , function(){window.location.href = 'NewTrack.aspx'; } );", true);
+                    ////mail.SendCancelMailtoHostInterviewCandidates(getUserDetails.Rows[0].ItemArray[3].ToString(), this.visitorRequestEntity, count,"", startDate, endDate, strCity, strFacility);
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(requestID))
+                {
+                    request = Convert.ToInt32(requestID);
+                }
+
+                if (request == 0)
+                {
+                    successSubmission = objDal.CancelRequest(Convert.ToInt32("0"));
+                }
+                else
+                {
+                    successSubmission = objDal.CancelRequest(request);
+                }
+
+                if (successSubmission.Equals(1))
+                {
+                    ScriptManager.RegisterStartupScript(home, home.GetType(), "CancelAlert", "CommonUtils.ShowAlertMessage('The Visitor Request could not be cancelled.', 'Error');", true);
+                }
+                else
+                {
+                    CancelMail(vistorID, requestID);
+                    DALClass objLocationDetailsBL = new DALClass();
+                    ////DataTable dataLocation = new DataTable();
+                    objLocationDetailsBL.GetLocationDetailsById(requestID);
+                    ////string strCity = Convert.ToString(dataLocation.Rows[0]["City"]);
+                    ////string strFacility = Convert.ToString(dataLocation.Rows[0]["Facility"]);
+                    ////ClientScript.RegisterStartupScript(typeof(Page), "CancelRequest", "<script language='javascript'>alert('The Visitor Request is cancelled.');window.location.href = 'Track.aspx';</script>", false);
+                    ScriptManager.RegisterStartupScript(home, home.GetType(), "CancelSuccess", "CommonUtils.ShowAlertMessage('The Visitor Request is cancelled', 'Success', null, function(){window.location.href = 'NewTrack.aspx'; } , function(){window.location.href = 'NewTrack.aspx'; } );", true);
+
+                    ////if (!string.IsNullOrEmpty(getUserDetails.Rows[0].ItemArray[3].ToString()))
+                    ////{
+                    ////    mail.SendCancelMailtoHost(getUserDetails.Rows[0].ItemArray[3].ToString(), this.visitorMasterEntity, this.visitorRequestEntity, startDate, endDate, strCity, strFacility, this.lblTimeZone.Text.Trim());
+
+                    ////    // To Unblock Calender
+                    ////    home.UnBlockCalendarinOutLook(request);
+                    ////}
+                }
+            }
+
+            return status;
+        }
+
+        ////private VMSBusinessEntity.VisitorRequest GetVisitorRequest()
+        ////{
+        ////    VMSBusinessEntity.VisitorRequest returnObj = new VMSBusinessEntity.VisitorRequest();
+        ////    DateTime requestedDate;
+        ////    DateTime createdDate;
+        ////    string userId = Common.Common.UserId();
+        ////    GenericTimeZone genTimeZone = new GenericTimeZone();
+        ////    DataTable dataGetUserDetails = this.objDal.GetUserDetails(userId);
+        ////    try
+        ////    {                              
+        ////         returnObj.HostID = string.Concat(dataGetUserDetails.Rows[0].ItemArray[1].ToString(), ", ", dataGetUserDetails.Rows[0].ItemArray[0].ToString(), " (", userId.ToString(), ")");
+        ////        requestedDate = genTimeZone.CurrentDateSystem();
+        ////        returnObj.RequestedDate = requestedDate;
+        ////        returnObj.Createdby = userId;
+        ////        createdDate = genTimeZone.CurrentDateSystem();
+        ////        returnObj.CreatedDate = createdDate;              
+        ////            returnObj.ISSMSEnabled = true;                               
+        ////            returnObj.OutlookNotfication = true;                              
+        ////        string[] fromdate1 = this.txtFromDate.Text.Split('/');
+        ////        string[] todate1 = this.txtFromDate.Text.Split('/');
+        ////        string strFromTime = this.ddlFromHr.Text;
+        ////        string strToTime = this.ddlToHr.Text;
+
+        ////        /* to convert different time zone to Indian time zone format */
+        ////        DateTime fromTime = this.genTimeZone.GetdatetimedetailsinIST(Convert.ToDateTime(fromdate1[0] + "/" + fromdate1[1] + "/" + fromdate1[2] + " " + strFromTime), Convert.ToString(this.Session["SubmitTimezoneOffset"]));
+        ////        DateTime time = this.genTimeZone.GetdatetimedetailsinIST(Convert.ToDateTime(todate1[0] + "/" + todate1[1] + "/" + todate1[2] + " " + strToTime), Convert.ToString(this.Session["SubmitTimezoneOffset"]));
+
+        ////        string fromhours = fromTime.Hour.ToString();
+        ////        string frommin = fromTime.Minute.ToString();
+        ////        string startTime = fromhours + ":" + frommin;
+        ////        string tohours = time.Hour.ToString();
+        ////        string tomin = time.Minute.ToString();
+        ////        string endTime = tohours + ":" + tomin;
+        ////        TimeSpan timeFrom = TimeSpan.Parse(startTime);
+        ////        TimeSpan timeTo = TimeSpan.Parse(endTime);
+        ////        returnObj.FromTime = timeFrom;
+        ////        returnObj.ToTime = timeTo;
+        ////    }
+        ////    catch (Exception ex)
+        ////    {
+        ////        ExceptionLogger.OneC_ExceptionLogger(ex, this.Page);
+        ////    }
+
+        ////    return returnObj;
+        ////}      
+
+        /// <summary>
+        /// Populate Visitor Details
+        /// </summary>
+        /// <param name="vistorDetailsID">Visitor Details ID</param>
+        /// <param name="visitorID">Visitor ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string PopulateVisitorDetails(string vistorDetailsID, string visitorID)
+        {
+            string recentVisitors = string.Empty;
+            DALClass objDal = new DALClass();
+            DALClass.PropertiesDC propertiesDC = new DALClass.PropertiesDC();
+            propertiesDC = objDal.GetVisitRequestDetails(Convert.ToInt32(vistorDetailsID));
+            VMSBusinessEntity.VisitorMaster dtmaster = propertiesDC.VisitorMasterProperty;
+            VMSBusinessEntity.VisitorRequest dtrequest = propertiesDC.VisitorRequestProperty;
+            ////IList<VMSBusinessEntity.VisitorEquipment> dtequipment = propertiesDC.VisitorEquipmentProperty;
+            DataTable dtlocationdesc = objDal.GetLocationDescrition(dtrequest.Facility.Trim());
+            DataTable dtvisitdetails = objDal.GetVisitDetailsUsingVisitID(Convert.ToInt32(vistorDetailsID));
+            DataTable dtvisitormaster = new DataTable();
+            dtvisitormaster.Columns.Add("VISITORNAME", typeof(string));
+            dtvisitormaster.Columns.Add("ORGANIZATION", typeof(string));
+            dtvisitormaster.Columns.Add("VISTORTYPE", typeof(string));
+            dtvisitormaster.Columns.Add("MOBILENUMBER", typeof(string));
+            dtvisitormaster.Columns.Add("EQUIPMENT", typeof(bool));
+            dtvisitormaster.Columns.Add("DATE", typeof(string));
+            dtvisitormaster.Columns.Add("STARTTIME", typeof(string));
+            dtvisitormaster.Columns.Add("ENDTIME", typeof(string));
+            dtvisitormaster.Columns.Add("LOCATION", typeof(string));
+            dtvisitormaster.Columns.Add("DATAACCESS", typeof(bool));
+            dtvisitormaster.Columns.Add("VISITORID", typeof(string));
+            dtvisitormaster.Columns.Add("HOSTID", typeof(string));
+            dtvisitormaster.Columns.Add("REQUESTID", typeof(string));
+            dtvisitormaster.Columns.Add("BULK", typeof(int));
+            dtvisitormaster.Columns.Add("Entries", typeof(string));
+            dtvisitormaster.Columns.Add("OTHERS", typeof(string));
+            if (Convert.ToInt32(dtrequest.BulkUpload) == 0)
+            {
+                DataRow dr = dtvisitormaster.NewRow();
+                dr["VISITORNAME"] = dtmaster.FirstName;
+                dr["ORGANIZATION"] = dtmaster.Company;
+                dr["VISTORTYPE"] = dtrequest.Purpose;
+                dr["MOBILENUMBER"] = dtmaster.MobileNo;
+                dr["EQUIPMENT"] = dtrequest.PermitITEquipments;
+                dr["DATE"] = dtvisitdetails.Rows[0].ItemArray[1].ToString();
+                var time = DateTime.ParseExact(Convert.ToString(dtrequest.FromTime), "HH:mm:ss", null).ToString("HH:mm");
+                var time1 = DateTime.ParseExact(Convert.ToString(dtrequest.ToTime), "HH:mm:ss", null).ToString("HH:mm");
+                dr["STARTTIME"] = time.ToString();
+                dr["ENDTIME"] = time1.ToString();
+                if (dtlocationdesc.Rows.Count > 0)
+                {
+                    dr["LOCATION"] = Convert.ToString(dtlocationdesc.Rows[0].ItemArray[0]);
+                }
+                else
+                {
+                    dr["LOCATION"] = Convert.ToString(dtrequest.Facility);
+                }
+
+                dr["DATAACCESS"] = false;
+                dr["VISITORID"] = visitorID;
+                dr["OTHERS"] = dtmaster.Others;
+                dr["HOSTID"] = dtrequest.HostID;
+                dr["REQUESTID"] = dtrequest.RequestID;
+                dr["BULK"] = 0;
+                dr["Entries"] = string.Empty;
+                if (dtrequest.PermitITEquipments == true)
+                {
+                }
+
+                dtvisitormaster.Rows.Add(dr);
+            }
+            else
+            {
+                DataTable dtbulkdata = objDal.GetBulkInterviewCandidateDetailsView(Convert.ToInt32(dtrequest.ParentReferenceId));
+                ////foreach (DataRow bulkdr in dtbulkdata.Rows)
+                ////{
+                DataRow dr = dtvisitormaster.NewRow();
+                dr["VISITORNAME"] = dtbulkdata.Rows[0].ItemArray[1];
+                dr["ORGANIZATION"] = dtbulkdata.Rows[0].ItemArray[4];
+                dr["VISTORTYPE"] = dtbulkdata.Rows[0].ItemArray[5];
+                dr["MOBILENUMBER"] = dtbulkdata.Rows[0].ItemArray[3];
+                dr["EQUIPMENT"] = dtbulkdata.Rows[0].ItemArray[6];
+                dr["DATE"] = dtvisitdetails.Rows[0].ItemArray[1].ToString();
+                var time = DateTime.ParseExact(Convert.ToString(dtbulkdata.Rows[0].ItemArray[8]), "HH:mm:ss", null).ToString("HH:mm");
+                var time1 = DateTime.ParseExact(Convert.ToString(dtbulkdata.Rows[0].ItemArray[9]), "HH:mm:ss", null).ToString("HH:mm");
+                dr["STARTTIME"] = time.ToString();
+                dr["ENDTIME"] = time1.ToString();
+                if (dtlocationdesc.Rows.Count > 0)
+                {
+                    dr["LOCATION"] = Convert.ToString(dtlocationdesc.Rows[0].ItemArray[0]);
+                }
+                else
+                {
+                    dr["LOCATION"] = dtbulkdata.Rows[0].ItemArray[10];
+                }
+
+                dr["DATAACCESS"] = false;
+                dr["VISITORID"] = dtbulkdata.Rows[0].ItemArray[13];
+                dr["HOSTID"] = dtbulkdata.Rows[0].ItemArray[11];
+                dr["REQUESTID"] = dtbulkdata.Rows[0].ItemArray[12];
+                dr["BULK"] = 1;
+                dr["Entries"] = dtbulkdata.Rows[0].ItemArray[0];
+                dr["OTHERS"] = dtbulkdata.Rows[0].ItemArray[14];
+                dtvisitormaster.Rows.Add(dr);
+                ////}
+            }
+
+            recentVisitors = JsonConvert.SerializeObject(dtvisitormaster, Formatting.Indented);
+            return recentVisitors;
+        }
+
+        /// <summary>
+        /// Decrypt function
+        /// </summary>
+        /// <param name="textToBeDecrypted">text To Be Decrypted</param>
+        /// <returns>Text string</returns>
+        public static string Decrypt(string textToBeDecrypted)
+        {
+            try
+            {
+                string codeword = ConfigurationManager.AppSettings["CodeValue"].ToString();
+                var securePassword = new SecureString();
+                foreach (var c in codeword)
+                {
+                    securePassword.AppendChar(c);
+                }
+
+                System.Text.UTF32Encoding encoder = new System.Text.UTF32Encoding();
+                System.Text.Decoder utf8Decode = encoder.GetDecoder();
+                byte[] todecode_byte = Convert.FromBase64String(textToBeDecrypted);
+                int charCount = utf8Decode.GetCharCount(todecode_byte, 0, todecode_byte.Length);
+                char[] decoded_char = new char[charCount];
+                utf8Decode.GetChars(todecode_byte, 0, todecode_byte.Length, decoded_char, 0);
+                string result = new string(decoded_char);
+                string[] a = result.Split('*');
+                string codeKey = System.Text.Encoding.Unicode.GetString(Convert.FromBase64String(a[0].ToString()));
+                if (codeKey.Equals(new NetworkCredential(string.Empty, securePassword).Password))
+                {
+                    return a[1];
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+                return string.Empty;
+
+            }
+        }
+
+        /// <summary>
+        /// Insert Master Data
+        /// </summary>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="company">Visitor Company</param>
+        /// <param name="purpose">Visitor purpose</param>
+        /// <param name="mobilenumber">Visitor MobileNo</param>
+        /// <param name="isequipment">Visitor has equipment</param>
+        /// <param name="others">Visitor others</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string InsertMasterData(string name, string company, string purpose, string mobilenumber, string isequipment, string others)
+        {
+            string jsonstring = string.Empty;
+            try
+            {
+                DALClass objDal = new DALClass();
+                DataTable dt = new DataTable();
+                string userId = Common.Common.UserId();
+                dt = objDal.InsertVisitorMasterDetailsPopup(name, company, mobilenumber, purpose, others, userId, "0", string.Empty);
+                ////dt = objDal.InserVisitorMaster(name, company, "india", mobilenumber, userId, "0", Convert.ToString(dt.Rows[0].ItemArray[0]), others);
+                jsonstring = JsonConvert.SerializeObject(isequipment);
+            }
+            catch (Exception)
+            {
+                //throw;
+
+            }
+
+            return jsonstring;
+        }
+
+        /// <summary>
+        /// Get Location
+        /// </summary>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetLocation()
+        {
+            HomePage home = new HomePage();
+            string location = string.Empty;
+            DALClass objDal = new DALClass();
+            try
+            {
+                ////DataTable locationtext = (DataTable)HttpContext.Current.Session["LocationText"];
+                ////if (locationtext.Rows.Count <= 0)
+                ////{
+                MultipleLocation locationData = new MultipleLocation();
+                locationData = objDal.GetAllLocationData();
+                List<Countries> country = locationData.AllCountries;
+                DataTable dtcountries = home.ToDataTable(country);
+                ////HttpContext.Current.Session.Add("LocationText", dtcountries);
+                ////}
+
+                ////locationtext = (DataTable)HttpContext.Current.Session["LocationText"];
+                location = JsonConvert.SerializeObject(dtcountries);
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return location;
+        }
+
+        /// <summary>
+        /// Get Visitor Type
+        /// </summary>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetVistorType()
+        {
+            string location = string.Empty;
+            DALClass objDal = new DALClass();
+            string userId = Common.Common.UserId();
+            try
+            {
+                ////List<string> locationtext = (List<string>)HttpContext.Current.Session["purposeDataText"];
+                ////if (locationtext == null || locationtext.Count <= 0)
+                ////{
+                DataTable getUserDetails = objDal.GetUserDetails(userId);
+                DataSet dtalldetailsfornewmodel = objDal.GetAllDetailsforNewRequest(userId, getUserDetails.Rows[0].ItemArray[7].ToString(), string.Empty, "purpose");
+                DataTable purpose = new DataTable();
+                List<string> purposeDataText = new List<string>();
+                purpose = dtalldetailsfornewmodel.Tables[0];
+                for (int i = 0; i < purpose.Rows.Count; i++)
+                {
+                    purposeDataText.Add(purpose.Rows[i].ItemArray[1].ToString());
+                }
+
+                ////HttpContext.Current.Session.Add("purposeDataText", purposeDataText);
+                ////}
+
+                ////locationtext = (List<string>)HttpContext.Current.Session["purposeDataText"];
+                location = JsonConvert.SerializeObject(purposeDataText);
+            }
+            catch (Exception ex)
+            {
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return location;
+        }
+
+        /// <summary>
+        /// Get Country Code
+        /// </summary>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetCountryCode()
+        {
+            string code = string.Empty;
+            DALClass objDal = new DALClass();
+            try
+            {
+                List<string> codetext = new List<string>();
+                ////if (codetext.Count <= 0)
+                ////{
+                string userId = Common.Common.UserId();
+                DataTable getUserDetails = objDal.GetUserDetails(userId);
+                DataSet dtalldetailsfornewmodel = objDal.GetAllDetailsforNewRequest(userId, getUserDetails.Rows[0].ItemArray[7].ToString(), string.Empty, "purpose");
+                DataTable dtcode = dtalldetailsfornewmodel.Tables[7];
+                //foreach (DataRow c in dtcode.Rows)
+                //{
+                //    codetext.Add(Convert.ToString(c.ItemArray[0]));
+                //}
+
+                ////HttpContext.Current.Session.Add("codetext", codetext);
+                ////codetext = (List<string>)HttpContext.Current.Session["codetext"];
+                ////}
+
+                code = JsonConvert.SerializeObject(dtcode);
+            }
+            catch (Exception ex)
+            {
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return code;
+        }
+
+        /// <summary>
+        /// Update Visitor Details
+        /// </summary>
+        /// <param name="visitorID">Visitor ID</param>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="company">Visitor Company</param>
+        /// <param name="mobileNo">Visitor MobileNo</param>
+        /// <param name="visitorType">Visitor Type</param>
+        /// <param name="others">Others text</param>
+        /// <param name="isequipment">is equipment</param>
+        /// <param name="euipmqntUniqID">equipment Unique ID</param>      
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string UpdateVisitorDetails(string visitorID, string name, string company, string mobileNo, string visitorType, string others, string isequipment, string euipmqntUniqID)
+        {
+            string jsonstring = string.Empty;
+            DALClass objDAL = new DALClass();
+            HomePage home = new HomePage();
+            try
+            {
+                string userId = Common.Common.UserId();
+                if (Convert.ToInt32(visitorID) == 0)
+                {
+                }
+                else
+                {
+                    objDAL.UpdateVisitorDetails(name, company, mobileNo, visitorID, userId, visitorType, others);
+                }
+
+                //// Get all recent visitors
+                DataTable dataRecentvisitors = objDAL.GetRecentVisitors(userId, 9);
+                List<int> visitorCart = new List<int>();
+                if (dataRecentvisitors.Rows.Count > 0)
+                {
+                    dataRecentvisitors.Columns.Add("IsExist", typeof(bool));
+                    dataRecentvisitors.Columns["MobileNo"].ReadOnly = false;
+                    dataRecentvisitors.Columns["VisitorFullName"].ReadOnly = false;
+                    for (int i = 0; i < dataRecentvisitors.Rows.Count; i++)
+                    {
+                        bool exists = visitorCart.Contains(Convert.ToInt32(dataRecentvisitors.Rows[i]["VisitorId"]));
+                        ////string visitorImage = string.Concat(string.Concat("EmployeeImage.aspx?key=", EmployeeImage.Encrypt(dataRecentvisitors.Rows[i]["VisitorId"].ToString())), "&flag=1");
+                        dataRecentvisitors.Rows[i]["IsExist"] = exists;
+                        dataRecentvisitors.Rows[i]["MobileNo"] = dataRecentvisitors.Rows[i]["MobileNo"].ToString();
+                        dataRecentvisitors.Rows[i]["VisitorFullName"] = home.TruncString(dataRecentvisitors.Rows[i]["VisitorFullName"].ToString(), 20);
+                    }
+
+                    jsonstring = JsonConvert.SerializeObject(dataRecentvisitors, Formatting.Indented);
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonstring;
+        }
+
+        /// <summary>
+        /// Get Recent Visitors
+        /// </summary>
+        /// <param name="visitorCount">visitor Count</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetRecentVisitors(int visitorCount)
+        {
+            string recentVisitors = string.Empty;
+            DALClass objDal = new DALClass();
+            HomePage home = new HomePage();
+            try
+            {
+                string userId = Common.Common.UserId();
+
+                //// Get all recent visitors
+                DataTable dataRecentvisitors = objDal.GetRecentVisitors(userId, visitorCount);
+                List<int> visitorCart = new List<int>();
+                if (dataRecentvisitors.Rows.Count > 0)
+                {
+                    dataRecentvisitors.Columns.Add("IsExist", typeof(bool));
+                    dataRecentvisitors.Columns["MobileNo"].ReadOnly = false;
+                    dataRecentvisitors.Columns["VisitorFullName"].ReadOnly = false;
+                    for (int i = 0; i < dataRecentvisitors.Rows.Count; i++)
+                    {
+                        bool exists = visitorCart.Contains(Convert.ToInt32(dataRecentvisitors.Rows[i]["VisitorId"]));
+                        ////string visitorImage = string.Concat(string.Concat("EmployeeImage.aspx?key=", EmployeeImage.Encrypt(dataRecentvisitors.Rows[i]["VisitorId"].ToString())), "&flag=1");
+                        dataRecentvisitors.Rows[i]["IsExist"] = exists;
+                        dataRecentvisitors.Rows[i]["MobileNo"] = dataRecentvisitors.Rows[i]["MobileNo"].ToString();
+                        dataRecentvisitors.Rows[i]["VisitorFullName"] = home.TruncString(dataRecentvisitors.Rows[i]["VisitorFullName"].ToString(), 20);
+                    }
+
+                    recentVisitors = JsonConvert.SerializeObject(dataRecentvisitors, Formatting.Indented);
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return recentVisitors;
+        }
+
+        /// <summary>
+        /// Get Visitor Cart
+        /// </summary>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetVisitorCart()
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            try
+            {
+                string userId = Common.Common.UserId();
+                DataTable tableSearchDetails = objDal.GetVisitorCart(userId);
+                for (int i = tableSearchDetails.Rows.Count - 1; i >= 0; i--)
+                {
+                    DataRow dr = tableSearchDetails.Rows[i];
+                    DateTime dtcurrent = DateTime.Now;
+                    int currentDateValues = Convert.ToInt32(dtcurrent.ToString("MMddyyyy"));
+                    string[] strsplidates = dr["Date"].ToString().Split(',');
+                    foreach (string strdate in strsplidates)
+                    {
+                        int inputDateValues = Convert.ToInt32(strdate.ToString().Replace("/", string.Empty));
+                        bool result = inputDateValues >= currentDateValues;
+                        if (result == false)
+                        {
+                            objDal.Updatecartflag(Convert.ToInt32(dr["CartID"].ToString()), userId);
+                            dr.Delete();
+                        }
+                    }
+                }
+
+                tableSearchDetails.AcceptChanges();
+                jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Get Search Details
+        /// </summary>
+        /// <param name="strSearchtext">Search text</param>
+        /// <param name="pagenumber">page number</param>
+        /// <param name="sortcolumn">sort column</param>
+        /// <param name="sortorder">sort order</param>
+        /// <param name="pagesize">page size</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetSearchDetails(string strSearchtext, int pagenumber, string sortcolumn, string sortorder, string pagesize)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            try
+            {
+                DataTable tableSearchDetails = objDal.GetExistingVisitorInformation(strSearchtext, pagenumber, sortcolumn, sortorder, pagesize);
+                List<int> visitorCart = new List<int>();
+                if (tableSearchDetails.Rows.Count > 0)
+                {
+                    tableSearchDetails.Columns.Add("IsExist", typeof(bool));
+                    for (int i = 0; i < tableSearchDetails.Rows.Count; i++)
+                    {
+                        bool exists = visitorCart.Contains(Convert.ToInt32(tableSearchDetails.Rows[i].ItemArray[0]));
+                        tableSearchDetails.Rows[i]["IsExist"] = exists;
+                    }
+                }
+
+                jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            }
+            catch (Exception ex)
+            {
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Get Dummy Equipment Details
+        /// </summary>
+        /// <param name="cartID">cart ID</param>
+        /// <returns>string value</returns>
+        [WebMethod]
+        public static string GetDummyEquipmentDetails(string cartID)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            try
+            {
+                DataTable tableSearchDetails = new DataTable();
+                if (Convert.ToInt32(cartID) != 0)
+                {
+                    tableSearchDetails = objDal.GetDummyEquipmentDetails(Convert.ToInt32(cartID));
+                    if (tableSearchDetails.Rows.Count == 0)
+                    {
+                        tableSearchDetails = objDal.GetDummyEquipmentDetails1(Convert.ToInt32(cartID));
+                    }
+                }
+
+                if (tableSearchDetails.Rows.Count == 0)
+                {
+                    DataTable dtdata = objDal.GetEquipmentDetails(Convert.ToInt32(cartID));
+                    DataTable tableSearchDetails1 = new DataTable();
+                    DataRow dr;
+                    tableSearchDetails1.Columns.Add("EquipmentType");
+                    tableSearchDetails1.Columns.Add("EquipmentMake");
+                    tableSearchDetails1.Columns.Add("EquipmentSerial");
+                    tableSearchDetails1.Columns.Add("EquipmentModel");
+                    for (int i = 0; i < dtdata.Rows.Count; i++)
+                    {
+                        dr = tableSearchDetails1.NewRow();
+                        dr["EquipmentType"] = dtdata.Rows[i].ItemArray[0];
+                        dr["EquipmentMake"] = dtdata.Rows[i].ItemArray[1];
+                        dr["EquipmentSerial"] = dtdata.Rows[i].ItemArray[3];
+                        dr["EquipmentModel"] = dtdata.Rows[i].ItemArray[2];
+                        tableSearchDetails1.Rows.Add(dr);
+                    }
+
+                    tableSearchDetails = tableSearchDetails1;
+                }
+
+                jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            }
+            catch (Exception ex)
+            {
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Insert Equipment Details
+        /// </summary>
+        /// <param name="txtlaptopType">laptop Type</param>
+        /// <param name="txtlaptopMake">laptop Make</param>
+        /// <param name="txtlaptopModel">laptop Model</param>
+        /// <param name="txtlaptopserial">laptop serial</param>
+        /// <param name="txtdatastoragedeviceType">data storage device Type</param>
+        /// <param name="txtdatastoragedeviceMake">data storage device Make</param>
+        /// <param name="txtdatastoragedeviceModel">data storage device Model</param>
+        /// <param name="txtdatastoragedeviceSerial">data storage device Serial</param>
+        /// <param name="txtUSBharddiskType">USB hard disk Type</param>
+        /// <param name="txtUSBharddiskMake">USB hard disk Make</param>
+        /// <param name="txtUSBharddiskModel">USB hard disk Model</param>
+        /// <param name="txtUSBharddiskSerial">USB hard disk Serial</param>
+        /// <param name="txtcameraType">camera Type</param>
+        /// <param name="txtcameraMake">camera Make</param>
+        /// <param name="txtcameraModel">camera Model</param>
+        /// <param name="txtcameraSerial">camera Serial</param>
+        /// <param name="txtIPodType">IPOD Type</param>
+        /// <param name="txtIPodMake">IPOD Make</param>
+        /// <param name="txtIPodModel">IPOD Model</param>
+        /// <param name="txtIPodSerial">IPOD Serial</param>
+        /// <param name="txtotherType">other Type</param>
+        /// <param name="txtotherMake">other Make</param>
+        /// <param name="txtotherModel">other Model</param>
+        /// <param name="txtotherSerial">other Serial</param>
+        /// <param name="laptopstatus">laptop status</param>
+        /// <param name="datastorage">data storage</param>
+        /// <param name="usbstatus">USB status</param>
+        /// <param name="camerastatus">camera status</param>
+        /// <param name="ipodStatus">IPOD Status</param>
+        /// <param name="othersstatus">others status</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string InsertEquipmentDetails(string txtlaptopType, string txtlaptopMake, string txtlaptopModel, string txtlaptopserial, string txtdatastoragedeviceType, string txtdatastoragedeviceMake, string txtdatastoragedeviceModel, string txtdatastoragedeviceSerial, string txtUSBharddiskType, string txtUSBharddiskMake, string txtUSBharddiskModel, string txtUSBharddiskSerial, string txtcameraType, string txtcameraMake, string txtcameraModel, string txtcameraSerial, string txtIPodType, string txtIPodMake, string txtIPodModel, string txtIPodSerial, string txtotherType, string txtotherMake, string txtotherModel, string txtotherSerial, string laptopstatus, string datastorage, string usbstatus, string camerastatus, string ipodStatus, string othersstatus)
+        {
+            string recentVisitors = string.Empty;
+            DALClass objDAL = new DALClass();
+            string userId = Common.Common.UserId();
+            string uniqID = string.Empty;
+            string alluniquids = string.Empty;
+            try
+            {
+                DataTable equipmentdetails = new DataTable();
+                ////DataRow dr;
+                ////dr = equipmentdetails.NewRow();
+                if (laptopstatus == "1")
+                {
+                    equipmentdetails = objDAL.InsertCartEquipment(txtlaptopType, txtlaptopMake, txtlaptopserial, txtlaptopModel, userId, "Empty");
+                    if (string.IsNullOrEmpty(alluniquids))
+                    {
+                        alluniquids = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                    else
+                    {
+                        alluniquids = alluniquids + "," + Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+
+                    if (string.IsNullOrEmpty(uniqID))
+                    {
+                        uniqID = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                }
+
+                if (datastorage == "1")
+                {
+                    equipmentdetails = objDAL.InsertCartEquipment(txtdatastoragedeviceType, txtdatastoragedeviceMake, txtdatastoragedeviceSerial, txtdatastoragedeviceModel, userId, uniqID);
+                    if (string.IsNullOrEmpty(alluniquids))
+                    {
+                        alluniquids = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                    else
+                    {
+                        alluniquids = alluniquids + "," + Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+
+                    if (string.IsNullOrEmpty(uniqID))
+                    {
+                        uniqID = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                }
+
+                if (usbstatus == "1")
+                {
+                    equipmentdetails = objDAL.InsertCartEquipment(txtUSBharddiskType, txtUSBharddiskMake, txtUSBharddiskSerial, txtUSBharddiskModel, userId, uniqID);
+                    if (string.IsNullOrEmpty(alluniquids))
+                    {
+                        alluniquids = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                    else
+                    {
+                        alluniquids = alluniquids + "," + Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+
+                    if (string.IsNullOrEmpty(uniqID))
+                    {
+                        uniqID = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                }
+
+                if (camerastatus == "1")
+                {
+                    equipmentdetails = objDAL.InsertCartEquipment(txtcameraType, txtcameraMake, txtcameraSerial, txtcameraModel, userId, uniqID);
+                    if (string.IsNullOrEmpty(alluniquids))
+                    {
+                        alluniquids = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                    else
+                    {
+                        alluniquids = alluniquids + "," + Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+
+                    if (string.IsNullOrEmpty(uniqID))
+                    {
+                        uniqID = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                }
+
+                if (ipodStatus == "1")
+                {
+                    equipmentdetails = objDAL.InsertCartEquipment(txtIPodType, txtIPodMake, txtIPodSerial, txtIPodModel, userId, uniqID);
+                    if (string.IsNullOrEmpty(alluniquids))
+                    {
+                        alluniquids = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                    else
+                    {
+                        alluniquids = alluniquids + "," + Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+
+                    if (string.IsNullOrEmpty(uniqID))
+                    {
+                        uniqID = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                }
+
+                if (othersstatus == "1")
+                {
+                    equipmentdetails = objDAL.InsertCartEquipment(txtotherType, txtotherMake, txtotherSerial, txtotherModel, userId, uniqID);
+                    if (string.IsNullOrEmpty(alluniquids))
+                    {
+                        alluniquids = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                    else
+                    {
+                        alluniquids = alluniquids + "," + Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+
+                    if (string.IsNullOrEmpty(uniqID))
+                    {
+                        uniqID = Convert.ToString(equipmentdetails.Rows[0].ItemArray[0]);
+                    }
+                }
+
+                string[] splitalluniqeID = alluniquids.Split(',');
+                foreach (string suniqID in splitalluniqeID)
+                {
+                    objDAL.UpdateEquipmentTempID(Convert.ToInt32(suniqID), Convert.ToInt32(uniqID));
+                }
+
+                recentVisitors = uniqID;
+            }
+            catch (Exception ex)
+            {
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return recentVisitors;
+        }
+
+        /// <summary>
+        /// Get Cart Location
+        /// </summary>
+        /// <param name="cartID">Cart ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetCartLocation(string cartID)
+        {
+            string status = string.Empty;
+            DALClass objDAL = new DALClass();
+            DataTable locationData = objDAL.GetCartLocation(Convert.ToInt32(cartID));
+            status = JsonConvert.SerializeObject(locationData);
+            return status;
+        }
+
+        /// <summary>
+        /// Delete Cart
+        /// </summary>
+        /// <param name="cartID">Cart ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string DeleteCart(string cartID)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            try
+            {
+                string userId = Common.Common.UserId();
+                DataTable tableSearchDetails = objDal.DeleteCart(userId, Convert.ToInt32(cartID));
+                jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Get Cart user Details
+        /// </summary>
+        /// <param name="cartID">Cart ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetCartuserDetails(string cartID)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            try
+            {
+                string userId = Common.Common.UserId();
+                DataTable tableSearchDetails = objDal.GetCartuserDetails(userId, Convert.ToInt32(cartID));
+                jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        [WebMethod]
+        public static string GetTimeZoneDetails(string LocationName, string DateValue, string TimeValue)
+        {
+            var SingleLocationName = LocationName.Split('~');
+            var SingleLocationTime = TimeValue.Split('~');
+            var SingleLocDate = DateValue.Split('~');
+
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            var message = "Failure";
+            var TimeZone = string.Empty;
+            try
+            {
+
+                for (int i = 0; i < SingleLocationName.Length; i++)
+                {
+                    var fulldate = SingleLocDate[i].ToString().Split(',');
+                    var DateArr = fulldate[0].ToString().Split('/');
+                    var TimeArr = SingleLocationTime[i].Split(':');
+                    DataTable tabletimezoneDetails = objDal.getTimeZoneInformation(SingleLocationName[i]);
+                    jsonString = JsonConvert.SerializeObject(tabletimezoneDetails);
+                    if (!string.IsNullOrEmpty(tabletimezoneDetails.Rows[0][0].ToString()))
+                    {
+                        TimeZone = tabletimezoneDetails.Rows[0][0].ToString();
+                    }
+                    else
+                    {
+                        TimeZone = "India Standard Time";
+                    }
+                    //DateTime dateTime_Indian = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZone);
+                    var regionTimeZone = TimeZoneInfo.FindSystemTimeZoneById(TimeZone);
+                    DateTime regionTimeNow = TimeZoneInfo.ConvertTime(DateTime.Now, TimeZoneInfo.Local, regionTimeZone);
+                    var regionTimeStart = new DateTime(Convert.ToInt32(DateArr[2]), Convert.ToInt32(DateArr[0]), Convert.ToInt32(DateArr[1]), Convert.ToInt32(TimeArr[0]), Convert.ToInt32(TimeArr[1]), 00);
+                    if (regionTimeNow > regionTimeStart)
+                    {
+                        message = "Time greater than current time of the region";
+                    }
+                    else
+                    {
+                        message = "Success";
+                    }
+                    //return message;
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return message;
+        }
+
+        /// <summary>
+        /// Insert Visitor Cart
+        /// </summary>
+        /// <param name="visitorType">Visitor Type</param>
+        /// <param name="mobileNo">Visitor MobileNo</param>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="organization">Visitor Company</param>
+        /// <param name="locationName">Location Name</param>
+        /// <param name="hostId">Host Id</param>
+        /// <param name="date">Visit Date</param>
+        /// <param name="startTime">Start Time</param>
+        /// <param name="totime">To Time</param>
+        /// <param name="isEquipment">Is Equipment</param>
+        /// <param name="isDatacenterAccess">is DatacenterAccess</param>
+        /// <param name="addedLocations">Added Locations</param>
+        /// <param name="others">Visitor Others</param>
+        /// <param name="locationID">location ID</param>
+        /// <param name="euipmqntUniqID">equipment ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string InsertVisitorCart(string visitorType, string mobileNo, string name, string organization, string locationName, string hostId, string date, string startTime, string totime, string isEquipment, string isDatacenterAccess, string addedLocations, string others, string locationID, string euipmqntUniqID)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            try
+            {
+                string validationStatus = GetTimeZoneDetails(locationName, date, startTime);
+                if (validationStatus.Equals("Success"))
+                {
+                    string[] locationNamespilt = locationName.Split('~');
+                    string[] locationIDpilt = locationID.Split('~');
+                    string[] hostIdsplit = hostId.Split('~');
+                    string[] datesplit = date.Split('~');
+                    string[] startTimesplit = startTime.Split('~');
+                    string[] totimesplit = totime.Split('~');
+                    string userId = Common.Common.UserId();
+                    string ismultiplelocation = string.Empty;
+                    DataTable tableSearchDetails = new DataTable();
+
+                    if (Convert.ToInt32(addedLocations) > 0)
+                    {
+                        if (string.IsNullOrEmpty(hostIdsplit[0]))
+                        {
+                            hostIdsplit[0] = "Empty";
+                        }
+
+                        ismultiplelocation = "1";
+                        string isdateexist = string.Empty;
+                        for (int i = 0; i < locationNamespilt.Length; i++)
+                        {
+                            foreach (string multiplrsingledate in datesplit)
+                            {
+                                string[] singledatesplit = multiplrsingledate.Split(',');
+                                foreach (string singledate in singledatesplit)
+                                {
+                                    DataTable alreadtexist = objDal.checkalreadyexist(visitorType, mobileNo, name, organization, "india", locationNamespilt[i], singledate, startTimesplit[i], totimesplit[i], userId);
+                                    if (Convert.ToInt32(alreadtexist.Rows[0].ItemArray[0]) == 0)
+                                    {
+                                        isdateexist += "0,";
+                                    }
+                                    else
+                                    {
+                                        isdateexist += "1,";
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!isdateexist.Contains("1"))
+                        {
+                            tableSearchDetails = objDal.InsertVisitorCart(visitorType, mobileNo, name, organization, "india", locationNamespilt[0], hostIdsplit[0], datesplit[0], startTimesplit[0], totimesplit[0], userId, Convert.ToInt32(isDatacenterAccess), Convert.ToInt32(0), Convert.ToInt32(isEquipment), Convert.ToInt32(ismultiplelocation), others, Convert.ToInt32(addedLocations), locationIDpilt[0], Convert.ToInt32(euipmqntUniqID));
+                            for (int i = 0; i < (locationNamespilt.Length - 1); i++)
+                            {
+                                int i1 = i + 1;
+                                string strhostID = string.Empty;
+                                ////if (hostIdsplit[0] == "Empty")
+                                ////{
+                                ////    strhostID = hostIdsplit[0];
+                                ////}
+                                ////else
+                                ////{
+                                if (hostIdsplit.Length > 1)
+                                {
+                                    if (string.IsNullOrEmpty(hostIdsplit[i1]))
+                                    {
+                                        strhostID = "Empty";
+                                    }
+                                    else
+                                    {
+                                        strhostID = hostIdsplit[i1];
+                                    }
+                                }
+                                else
+                                {
+                                    strhostID = "Empty";
+                                }
+
+                                ////}
+                                objDal.InsertCartLocation(locationNamespilt[i1], strhostID, datesplit[i1], startTimesplit[i1], totimesplit[i1], userId, Convert.ToInt32(tableSearchDetails.Rows[0].ItemArray[0].ToString()), locationIDpilt[i1], "insert");
+                            }
+                        }
+                        else
+                        {
+                            tableSearchDetails.Clear();
+                            tableSearchDetails.Columns.Add("CartID");
+                            DataRow dtrow = tableSearchDetails.NewRow();
+                            dtrow["CartID"] = "0";
+                            tableSearchDetails.Rows.Add(dtrow);
+                        }
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(hostId))
+                        {
+                            hostId = "Empty";
+                        }
+
+                        ismultiplelocation = "0";
+                        string[] singledatesplit = date.Split(',');
+                        string isdateexist = string.Empty;
+                        foreach (string singledate in singledatesplit)
+                        {
+                            DataTable alreadtexist = objDal.checkalreadyexist(visitorType, mobileNo, name, organization, "india", locationName, singledate, startTime, totime, userId);
+                            if (Convert.ToInt32(alreadtexist.Rows[0].ItemArray[0]) == 0)
+                            {
+                                isdateexist += "0,";
+                            }
+                            else
+                            {
+                                isdateexist += "1,";
+                            }
+                        }
+
+                        if (!isdateexist.Contains("1"))
+                        {
+                            tableSearchDetails = objDal.InsertVisitorCart(visitorType, mobileNo, name, organization, "india", locationName, hostId, date, startTime, totime, userId, Convert.ToInt32(isDatacenterAccess), Convert.ToInt32(0), Convert.ToInt32(isEquipment), Convert.ToInt32(ismultiplelocation), others, Convert.ToInt32(addedLocations), locationID, Convert.ToInt32(euipmqntUniqID));
+                            tableSearchDetails = objDal.GetVisitorCart(userId);
+                        }
+                        else
+                        {
+                            tableSearchDetails.Clear();
+                            tableSearchDetails.Columns.Add("CartID");
+                            DataRow dtrow = tableSearchDetails.NewRow();
+                            dtrow["CartID"] = "0";
+                            tableSearchDetails.Rows.Add(dtrow);
+                        }
+                    }
+
+                    jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+                }
+                else
+                {
+                    jsonString = "Validation failed|" + validationStatus;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Update Visitor Cart
+        /// </summary>
+        /// <param name="visitorType">Visitor Type</param>
+        /// <param name="mobileNo">Visitor MobileNo</param>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="organization">Visitor Company</param>
+        /// <param name="locationName">Location Name</param>
+        /// <param name="hostId">Host Id</param>
+        /// <param name="date">Visit Date</param>
+        /// <param name="startTime">Start Time</param>
+        /// <param name="totime">To Time</param>
+        /// <param name="isEquipment">Is Equipment</param>
+        /// <param name="isDatacenterAccess">is DatacenterAccess</param>
+        /// <param name="cartID">Cart ID</param>
+        /// <param name="addedLocations">Added Locations</param>
+        /// <param name="others">Visitor Others</param> 
+        /// <param name="locationID">location ID</param>
+        /// <param name="euipmqntUniqID">equipment ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string UpdateVisitorCart(string visitorType, string mobileNo, string name, string organization, string locationName, string hostId, string date, string startTime, string totime, string isEquipment, string isDatacenterAccess, string cartID, string addedLocations, string others, string locationID, string euipmqntUniqID)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            try
+            {
+                string validationStatus = GetTimeZoneDetails(locationName, date, startTime);
+                if (validationStatus.Equals("Success"))
+                {
+                    string[] locationNamespilt = locationName.Split('~');
+                    string[] locationIDpilt = locationID.Split('~');
+                    string[] hostIdsplit = hostId.Split('~');
+                    string[] datesplit = date.Split('~');
+                    string[] startTimesplit = startTime.Split('~');
+                    string[] totimesplit = totime.Split('~');
+                    string userId = Common.Common.UserId();
+                    string ismultiplelocation = string.Empty;
+                    DataTable tableSearchDetails = new DataTable();
+                    if (Convert.ToInt32(addedLocations) > 0)
+                    {
+                        if (string.IsNullOrEmpty(hostIdsplit[0]))
+                        {
+                            hostIdsplit[0] = "Empty";
+                        }
+
+                        ismultiplelocation = "1";
+                        tableSearchDetails = objDal.UpdateCartDetails(visitorType, mobileNo, name, organization, "india", locationNamespilt[0], hostIdsplit[0], datesplit[0], startTimesplit[0], totimesplit[0], userId, Convert.ToInt32(isDatacenterAccess), Convert.ToInt32(0), Convert.ToInt32(isEquipment), Convert.ToInt32(cartID), Convert.ToInt32(ismultiplelocation), others, Convert.ToInt32(addedLocations), locationIDpilt[0], Convert.ToInt32(euipmqntUniqID));
+                        for (int i = 0; i < (locationNamespilt.Length - 1); i++)
+                        {
+                            int i1 = i + 1;
+                            string strhostID = string.Empty;
+                            ////if (hostIdsplit[0] == "Empty")
+                            ////{
+                            ////    strhostID = hostIdsplit[0];
+                            ////}
+                            ////else
+                            ////{
+                            if (hostIdsplit.Length > 1)
+                            {
+                                if (string.IsNullOrEmpty(hostIdsplit[i1]))
+                                {
+                                    strhostID = "Empty";
+                                }
+                                else
+                                {
+                                    strhostID = hostIdsplit[i1];
+                                }
+                            }
+                            else
+                            {
+                                strhostID = "Empty";
+                            }
+                            ////}
+
+                            if (i == 0)
+                            {
+                                objDal.InsertCartLocation(locationNamespilt[i1], strhostID, datesplit[i1], startTimesplit[i1], totimesplit[i1], userId, Convert.ToInt32(tableSearchDetails.Rows[0].ItemArray[0].ToString()), locationIDpilt[i1], "update");
+                            }
+                            else
+                            {
+                                objDal.InsertCartLocation(locationNamespilt[i1], strhostID, datesplit[i1], startTimesplit[i1], totimesplit[i1], userId, Convert.ToInt32(tableSearchDetails.Rows[0].ItemArray[0].ToString()), locationIDpilt[i1], "insert");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(hostId))
+                        {
+                            hostId = "Empty";
+                        }
+
+                        ismultiplelocation = "0";
+                        tableSearchDetails = objDal.UpdateCartDetails(visitorType, mobileNo, name, organization, "india", locationName, hostId, date, startTime, totime, userId, Convert.ToInt32(isDatacenterAccess), Convert.ToInt32(0), Convert.ToInt32(isEquipment), Convert.ToInt32(cartID), Convert.ToInt32(ismultiplelocation), others, Convert.ToInt32(addedLocations), locationID, Convert.ToInt32(euipmqntUniqID));
+                    }
+
+                    tableSearchDetails = objDal.GetVisitorCart(userId);
+                    jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+                }
+                else
+                {
+                    jsonString = "Validation failed|" + validationStatus;
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Update Cart Profile details
+        /// </summary>
+        /// <param name="visitorType">Visitor Type</param>
+        /// <param name="mobileNo">Visitor MobileNo</param>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="organization">Visitor Company</param>
+        /// <param name="isEquipment">Is Equipment</param>
+        /// <param name="cartID">Cart ID</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string UpdateCartProfildetails(string visitorType, string mobileNo, string name, string organization, string isEquipment, string cartID)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            HomePage home = new HomePage();
+            string userId = Common.Common.UserId();
+            try
+            {
+                DataTable tableSearchDetails = objDal.UpdateCartProfildetails(visitorType, mobileNo, name, organization, userId, Convert.ToInt32(isEquipment), Convert.ToInt32(cartID));
+                jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Get Bulk Records
+        /// </summary>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string GetBulkRecords()
+        {
+            ////Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            ////HomePage home = new HomePage();
+            DataTable dt = VMSUtility.BulkuploadedData;
+            DataView view = new DataView(dt);
+            DataTable distinctValues = view.ToTable(true, "Name", "Email", "Mobile");
+            jsonString = JsonConvert.SerializeObject(distinctValues);
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Insert Bulk Records
+        /// </summary>
+        /// <param name="locationName">Location Name</param>
+        /// <param name="hostId">Host Id</param>
+        /// <param name="date">Visit Date</param>
+        /// <param name="startTime">Start Time</param>
+        /// <param name="totime">To Time</param>
+        /// <param name="status">status text</param>
+        /// <param name="visitorType">visitor Type</param>
+        /// <param name="others">others text</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string InsertBulkRecords(string locationName, string hostId, string date, string startTime, string totime, string status, string visitorType, string others)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string jsonString = string.Empty;
+            ////HomePage home = new HomePage();
+            string userId = Common.Common.UserId();
+            DataTable dt = VMSUtility.BulkuploadedData;
+            DataTable tableSearchDetails = new DataTable();
+            string requestID = string.Empty;
+            DataTable dtmasterID = new DataTable();
+            if (status == "Insert")
+            {
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    if (visitorType == "Others")
+                    {
+                        dtmasterID = objDal.InsertVisitorMasterDetailsPopup(Convert.ToString(dt.Rows[i].ItemArray[0]), Convert.ToString(others), Convert.ToString("+91" + "-" + dt.Rows[i].ItemArray[2]), Convert.ToString(visitorType), others, userId, "0", Convert.ToString(dt.Rows[i].ItemArray[1]));
+                        if (dtmasterID != null && dtmasterID.Rows.Count > 0)
+                        {
+                            tableSearchDetails = objDal.InserVisitorMaster(Convert.ToString(dt.Rows[i].ItemArray[0]), others, "India", Convert.ToString("+91" + "-" + dt.Rows[i].ItemArray[2]), userId, "0", Convert.ToString(dtmasterID.Rows[0].ItemArray[0]), others, Convert.ToString(dt.Rows[i].ItemArray[1]));
+                            objDal.InsertEmailForBulkUser(Convert.ToInt32(dtmasterID.Rows[0].ItemArray[0]), Convert.ToString(dt.Rows[0].ItemArray[1]));
+                        }
+                    }
+                    else
+                    {
+                        dtmasterID = objDal.InsertVisitorMasterDetailsPopup(Convert.ToString(dt.Rows[i].ItemArray[0]), Convert.ToString("Interview"), Convert.ToString("+91" + "-" + dt.Rows[i].ItemArray[2]), Convert.ToString(visitorType), others, userId, "0", Convert.ToString(dt.Rows[i].ItemArray[1]));
+                        if (dtmasterID != null && dtmasterID.Rows.Count > 0)
+                        {
+                            tableSearchDetails = objDal.InserVisitorMaster(Convert.ToString(dt.Rows[i].ItemArray[0]), "Interview", "India", Convert.ToString("+91" + "-" + dt.Rows[i].ItemArray[2]), userId, "0", Convert.ToString(dtmasterID.Rows[0].ItemArray[0]), others, Convert.ToString(dt.Rows[i].ItemArray[1]));
+                            objDal.InsertEmailForBulkUser(Convert.ToInt32(dtmasterID.Rows[0].ItemArray[0]), Convert.ToString(dt.Rows[i].ItemArray[1]));
+                        }
+                    }
+
+                    if (tableSearchDetails != null && tableSearchDetails.Rows.Count > 0)
+                    {
+                        string fromdate = string.Empty;
+                        string todate = string.Empty;
+                        string[] splitdate = date.Split(',');
+                        int splitlength = splitdate.Length;
+                        if (splitlength > 1)
+                        {
+                            fromdate = splitdate[0];
+                            todate = splitdate[splitlength - 1];
+                        }
+                        else
+                        {
+                            fromdate = splitdate[0];
+                            todate = splitdate[0];
+                        }
+
+                        if (string.IsNullOrEmpty(hostId))
+                        {
+                            hostId = userId;
+                        }
+
+                        tableSearchDetails = objDal.InsertVisitorRequest(Convert.ToInt32(tableSearchDetails.Rows[0].ItemArray[0]), locationName, visitorType, hostId, fromdate, todate, startTime, totime, userId, 0, requestID, 1, Convert.ToInt32(dtmasterID.Rows[0].ItemArray[0]));
+                        if (tableSearchDetails != null && tableSearchDetails.Rows.Count > 0)
+                        {
+                            if (i == 0)
+                            {
+                                requestID = Convert.ToString(tableSearchDetails.Rows[0].ItemArray[0]);
+                                objDal.UpdatelastRequestID(Convert.ToInt32(requestID));
+                            }
+
+                            string[] splitdate1 = date.Split(',');
+                            string strrequest = Convert.ToString(tableSearchDetails.Rows[0].ItemArray[0]);
+                            for (int f = 0; f < splitdate1.Length; f++)
+                            {
+                                tableSearchDetails = objDal.InsertVisitDetails(Convert.ToInt32(strrequest), Convert.ToString(splitdate1[f]), "insert");
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                var sliptstatustext = status.Split('~');
+                VMSBusinessEntity.VisitorRequest visitorRequest = new VMSBusinessEntity.VisitorRequest();
+                visitorRequest.VisitorID = Convert.ToInt32(sliptstatustext[1]);
+                visitorRequest.Facility = locationName;
+                visitorRequest.Purpose = visitorType;
+                string fromdate = string.Empty;
+                string todate = string.Empty;
+                string[] splitdate = Convert.ToString(date).Split(',');
+                int splitlength = splitdate.Length;
+                if (splitlength > 1)
+                {
+                    fromdate = splitdate[0];
+                    todate = splitdate[splitlength - 1];
+                }
+                else
+                {
+                    fromdate = splitdate[0];
+                    todate = splitdate[0];
+                }
+
+                visitorRequest.FromDate = Convert.ToDateTime(fromdate);
+                visitorRequest.ToDate = Convert.ToDateTime(todate);
+                DateTime dateTime = DateTime.ParseExact(startTime, "HH:mm", CultureInfo.InvariantCulture);
+                TimeSpan tfromTime = dateTime.TimeOfDay;
+                visitorRequest.FromTime = tfromTime;
+                DateTime dateTime1 = DateTime.ParseExact(totime, "HH:mm", CultureInfo.InvariantCulture);
+                TimeSpan ttoTime = dateTime1.TimeOfDay;
+                visitorRequest.ToTime = ttoTime;
+                visitorRequest.HostID = hostId;
+                visitorRequest.ISSMSEnabled = true;
+                visitorRequest.Status = "Updated";
+                visitorRequest.PermitITEquipments = false;
+                visitorRequest.RequestID = Convert.ToInt32(sliptstatustext[0]);
+                visitorRequest.RequestStatus = "Yet to arrive";
+                visitorRequest.OutlookNotfication = true;
+                visitorRequest.Createdby = userId;
+                objDal.UpdateRequestDetails(visitorRequest);
+                string[] splitdate1 = Convert.ToString(date).Split(',');
+                ////DataTable tdrequestID = new DataTable();
+                for (int f = 0; f < splitdate1.Length; f++)
+                {
+                    ////if (f == 0)
+                    ////{
+                    objDal.InsertVisitDetails(Convert.ToInt32(sliptstatustext[0]), Convert.ToString(splitdate1[f]), "update" + "~" + sliptstatustext[2]);
+                    ////}
+                    ////else
+                    ////{
+                    ////    objDal.InsertVisitDetails(Convert.ToInt32(sliptstatustext[0]), Convert.ToString(splitdate1[f]), "insert");
+                    ////}
+                }
+            }
+
+            tableSearchDetails = objDal.GetRecentVisitors(userId, 9);
+            jsonString = JsonConvert.SerializeObject(tableSearchDetails);
+            return jsonString;
+        }
+
+        /// <summary>
+        /// Insert All Details
+        /// </summary>
+        /// <param name="isconfidance">Is confidence</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string InsertAllDetails(string isconfidance)
+        {
+            string status = string.Empty;
+            string userId = Common.Common.UserId();
+            Common.DALClass objDal = new Common.DALClass();
+            DataTable tableSearchDetails = new DataTable();
+            string requestID = string.Empty;
+            string requestID1 = string.Empty;
+            string locationname = string.Empty;
+            string locationname1 = string.Empty;
+            string masterID = string.Empty;
+            string oldmasterid = string.Empty;
+            string locationmasterid = string.Empty;
+            string locationoldmasterid = string.Empty;
+            List<LocationMapping> locationmapping = new List<LocationMapping>();
+            LocationMapping ids = null;
+            DataTable dt = objDal.GetAllCartDetails(userId);
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                DataTable dtlocation = new DataTable();
+                if (Convert.ToInt32(dt.Rows[i].ItemArray[17]) == 1)
+                {
+                    dtlocation = objDal.GetAllcartLocation(Convert.ToString(userId));
+                }
+
+                var locationAdd = from location in locationmapping
+                                  where location.CartID == Convert.ToString(dt.Rows[i].ItemArray[0])
+                                  select new { MasterID = location.MasterID, oldMasterID = location.OldmasterID };
+                DataTable dtmasterID = new DataTable();
+                DataTable dtoldmaster = new DataTable();
+                if (locationAdd.Count() == 0)
+                {
+                    dtmasterID = objDal.InsertVisitorMasterDetailsPopup(Convert.ToString(dt.Rows[i].ItemArray[4]), Convert.ToString(dt.Rows[i].ItemArray[3]), Convert.ToString(dt.Rows[i].ItemArray[2]), Convert.ToString(dt.Rows[i].ItemArray[1]), Convert.ToString(dt.Rows[i].ItemArray[18]), userId, isconfidance, string.Empty);
+                    dtoldmaster = new DataTable();
+                    if (dtmasterID != null && dtmasterID.Rows.Count > 0)
+                    {
+                        dtoldmaster = objDal.InserVisitorMaster(Convert.ToString(dt.Rows[i].ItemArray[4]), Convert.ToString(dt.Rows[i].ItemArray[3]), Convert.ToString(dt.Rows[i].ItemArray[5]), Convert.ToString(dt.Rows[i].ItemArray[2]), userId, isconfidance, Convert.ToString(dtmasterID.Rows[0].ItemArray[0]), Convert.ToString(dt.Rows[i].ItemArray[18]), string.Empty);
+                        ids = new LocationMapping();
+                        ids.CartID = Convert.ToString(dt.Rows[i].ItemArray[0]);
+                        ids.MasterID = Convert.ToString(dtmasterID.Rows[0].ItemArray[0]);
+                        masterID = Convert.ToString(dtmasterID.Rows[0].ItemArray[0]);
+                        oldmasterid = Convert.ToString(dtoldmaster.Rows[0].ItemArray[0]);
+                        ids.OldmasterID = Convert.ToString(dtoldmaster.Rows[0].ItemArray[0]);
+                        locationmapping.Add(ids);
+                    }
+                }
+                else
+                {
+                    foreach (var s in locationAdd)
+                    {
+                        masterID = Convert.ToString(s.MasterID);
+                        oldmasterid = Convert.ToString(s.oldMasterID);
+                    }
+                }
+
+                ////if (dtoldmaster != null && dtoldmaster.Rows.Count > 0)
+                ////{
+                string fromdate = string.Empty;
+                string todate = string.Empty;
+                string[] splitdate = Convert.ToString(dt.Rows[i].ItemArray[8]).Split(',');
+                int splitlength = splitdate.Length;
+                if (splitlength > 1)
+                {
+                    fromdate = splitdate[0];
+                    todate = splitdate[splitlength - 1];
+                }
+                else
+                {
+                    fromdate = splitdate[0];
+                    todate = splitdate[0];
+                }
+
+                DateTime fromtime;
+                bool res = DateTime.TryParse(Convert.ToString(dt.Rows[i].ItemArray[9]), out fromtime);
+                if (res == true)
+                {
+                }
+
+                string strfromtime = fromtime.ToString("HH:mm:ss");
+                DateTime totime;
+                bool res1 = DateTime.TryParse(Convert.ToString(dt.Rows[i].ItemArray[10]), out totime);
+                if (res1 == true)
+                {
+                }
+
+                string strtotime = totime.ToString("HH:mm:ss");
+                string[] splilocation = Convert.ToString(dt.Rows[i].ItemArray[6]).Split('-');
+                DataTable dtrequest = new DataTable();
+                //597397- checking for Duplicate request 
+                foreach (string singledate in splitdate)
+                {
+                    DateTime singdat = Convert.ToDateTime(singledate);
+                    string formatdate = singdat.ToString("yyyy-MM-dd");
+                    DateTime fortime = Convert.ToDateTime(strfromtime);
+                    string ftime = fortime.ToString("HH:mm:ss.fffffff");
+                    DateTime to_fortime = Convert.ToDateTime(strtotime);
+                    string toftime = fortime.ToString("HH:mm:ss.fffffff");
+                    DataTable alreadtexist = objDal.checkDuplicaterequest(Convert.ToString(dt.Rows[i].ItemArray[1]), Convert.ToString(dt.Rows[i].ItemArray[6]), formatdate, Convert.ToString(strfromtime), Convert.ToString(strtotime), Convert.ToInt32(masterID));
+                    if (Convert.ToInt32(alreadtexist.Rows[0].ItemArray[0]) == 0)
+                    {
+                        status = "success";
+                    }
+                    else
+                    {
+                        status = "fail";
+                    }
+                }
+                //597397 - end Duplicate request
+                if (status == "success")
+                {
+                    if (Convert.ToString(splilocation[1]) == locationname)
+                    {
+                        dtrequest = objDal.InsertVisitorRequest(Convert.ToInt32(oldmasterid), Convert.ToString(dt.Rows[i].ItemArray[6]), Convert.ToString(dt.Rows[i].ItemArray[1]), Convert.ToString(dt.Rows[i].ItemArray[7]), fromdate, todate, Convert.ToString(strfromtime), Convert.ToString(strtotime), userId, Convert.ToInt32(dt.Rows[i].ItemArray[14]), requestID, 0, Convert.ToInt32(masterID));
+                    }
+                    else
+                    {
+                        locationname = Convert.ToString(splilocation[1]);
+                        dtrequest = objDal.InsertVisitorRequest(Convert.ToInt32(oldmasterid), Convert.ToString(dt.Rows[i].ItemArray[6]), Convert.ToString(dt.Rows[i].ItemArray[1]), Convert.ToString(dt.Rows[i].ItemArray[7]), fromdate, todate, Convert.ToString(strfromtime), Convert.ToString(strtotime), userId, Convert.ToInt32(dt.Rows[i].ItemArray[14]), requestID, 0, Convert.ToInt32(masterID));
+                        requestID = Convert.ToString(dtrequest.Rows[0].ItemArray[0]);
+                        objDal.UpdatelastRequestID(Convert.ToInt32(requestID));
+                    }
+                }
+                else
+                {
+                    return status;
+                }
+                for (int f = 0; f < dtlocation.Rows.Count; f++)
+                {
+                    var locationadd1 = from location1 in locationmapping
+                                       where location1.CartID == Convert.ToString(dtlocation.Rows[f].ItemArray[8])
+                                       select new { MasterID = location1.MasterID, oldMasterID = location1.OldmasterID };
+                    DataTable dtlocationcartdata = new DataTable();
+                    DataTable dtlocationoldmaster = new DataTable();
+                    DataTable dtlocationmasterID = new DataTable();
+                    if (locationadd1.Count() == 0)
+                    {
+                        dtlocationcartdata = objDal.GetCartuserDetails(userId, Convert.ToInt32(dtlocation.Rows[f].ItemArray[8]));
+                        dtlocationmasterID = objDal.InsertVisitorMasterDetailsPopup(Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[4]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[3]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[2]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[1]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[16]), userId, isconfidance, string.Empty);
+                        if (dtlocationmasterID != null && dtlocationmasterID.Rows.Count > 0)
+                        {
+                            dtlocationoldmaster = objDal.InserVisitorMaster(Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[4]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[3]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[5]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[2]), userId, isconfidance, Convert.ToString(dtlocationmasterID.Rows[0].ItemArray[0]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[16]), string.Empty);
+                        }
+
+                        ids = new LocationMapping();
+                        ids.CartID = Convert.ToString(dtlocation.Rows[f].ItemArray[8]);
+                        ids.MasterID = Convert.ToString(dtlocationmasterID.Rows[0].ItemArray[0]);
+                        ids.OldmasterID = Convert.ToString(dtlocationoldmaster.Rows[0].ItemArray[0]);
+
+                        locationmasterid = Convert.ToString(dtlocationmasterID.Rows[0].ItemArray[0]);
+                        locationoldmasterid = Convert.ToString(dtlocationoldmaster.Rows[0].ItemArray[0]);
+                        locationmapping.Add(ids);
+                    }
+                    else
+                    {
+                        foreach (var s1 in locationadd1)
+                        {
+                            locationmasterid = Convert.ToString(s1.MasterID);
+                            locationoldmasterid = Convert.ToString(s1.oldMasterID);
+                        }
+                    }
+
+                    string[] splitdate1 = Convert.ToString(dtlocation.Rows[f].ItemArray[1]).Split(',');
+                    int splitlength1 = splitdate1.Length;
+                    string fromdate1 = string.Empty;
+                    string todate1 = string.Empty;
+                    if (splitlength > 1)
+                    {
+                        fromdate1 = splitdate1[0];
+                        todate1 = splitdate1[splitlength1 - 1];
+                    }
+                    else
+                    {
+                        fromdate1 = splitdate1[0];
+                        todate1 = splitdate1[0];
+                    }
+
+                    DateTime locationfromtime;
+                    bool res3 = DateTime.TryParse(Convert.ToString(dtlocation.Rows[f].ItemArray[2]), out locationfromtime);
+                    if (res3 == true)
+                    {
+                    }
+
+                    string strlocationfromtime = locationfromtime.ToString("HH:mm:ss");
+                    DateTime locationtotime;
+                    bool res4 = DateTime.TryParse(Convert.ToString(dtlocation.Rows[f].ItemArray[3]), out locationtotime);
+                    if (res4 == true)
+                    {
+                    }
+
+                    string strlocationtotime = locationtotime.ToString("HH:mm:ss");
+                    string[] splitlocation = Convert.ToString(dtlocation.Rows[f].ItemArray[0]).Split('-');
+                    DataTable dtlocationrequest = new DataTable();
+                    dtlocationcartdata = objDal.GetCartuserDetails(userId, Convert.ToInt32(dtlocation.Rows[f].ItemArray[8]));
+                    if (status == "success")
+                    {
+                        if (Convert.ToString(splitlocation[1]) == locationname)
+                        {
+                            dtlocationrequest = objDal.InsertVisitorRequest(Convert.ToInt32(locationoldmasterid), Convert.ToString(dtlocation.Rows[f].ItemArray[0]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[1]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[8]), fromdate1, todate1, Convert.ToString(strlocationfromtime), Convert.ToString(strlocationtotime), userId, Convert.ToInt32(dtlocationcartdata.Rows[0].ItemArray[12]), requestID, 0, Convert.ToInt32(locationmasterid));
+                        }
+                        else
+                        {
+                            string[] splitlocation1 = Convert.ToString(dtlocation.Rows[f].ItemArray[0]).Split('-');
+                            if (Convert.ToString(splitlocation[1]) == locationname1)
+                            {
+                                dtlocationrequest = objDal.InsertVisitorRequest(Convert.ToInt32(locationoldmasterid), Convert.ToString(dtlocation.Rows[f].ItemArray[0]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[1]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[8]), fromdate1, todate1, Convert.ToString(strlocationfromtime), Convert.ToString(strlocationtotime), userId, Convert.ToInt32(dtlocationcartdata.Rows[0].ItemArray[12]), requestID1, 0, Convert.ToInt32(locationmasterid));
+                            }
+                            else
+                            {
+                                locationname1 = Convert.ToString(splitlocation1[1]);
+                                dtlocationrequest = objDal.InsertVisitorRequest(Convert.ToInt32(locationoldmasterid), Convert.ToString(dtlocation.Rows[f].ItemArray[0]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[1]), Convert.ToString(dtlocationcartdata.Rows[0].ItemArray[8]), fromdate1, todate1, Convert.ToString(strlocationfromtime), Convert.ToString(strlocationtotime), userId, Convert.ToInt32(dtlocationcartdata.Rows[0].ItemArray[12]), requestID1, 0, Convert.ToInt32(locationmasterid));
+                                requestID1 = Convert.ToString(dtlocationrequest.Rows[0].ItemArray[0]);
+                                objDal.UpdatelastRequestID(Convert.ToInt32(requestID1));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        return status;
+                    }
+                    string srequestID = dtlocationrequest.Rows[0].ItemArray[0].ToString();
+                    for (int q = 0; q < splitdate1.Length; q++)
+                    {
+                        objDal.InsertVisitDetails(Convert.ToInt32(srequestID), Convert.ToString(splitdate1[q]), "insert");
+                    }
+                }
+
+                if (dtrequest != null && dtrequest.Rows.Count > 0)
+                {
+                    string[] splitdate1 = Convert.ToString(dt.Rows[i].ItemArray[8]).Split(',');
+                    string strrequest = Convert.ToString(dtrequest.Rows[0].ItemArray[0]);
+                    DataTable dtvisit = new DataTable();
+                    for (int f = 0; f < splitdate1.Length; f++)
+                    {
+                        dtvisit = objDal.InsertVisitDetails(Convert.ToInt32(strrequest), Convert.ToString(splitdate1[f]), "insert");
+                        if (dtvisit != null && dtvisit.Rows.Count > 0)
+                        {
+                            if (Convert.ToInt32(dt.Rows[i].ItemArray[14]) == 1)
+                            {
+                                ////string cartID = Convert.ToString(dt.Rows[0].ItemArray[0]);
+                                ////string eqiptype = string.Empty;
+                                DataTable dtequipment = objDal.GetDummyEquipmentDetails1(Convert.ToInt32(dt.Rows[i].ItemArray[0]));
+                                if (dtequipment.Rows.Count > 0)
+                                {
+                                    for (int q = 0; q < dtequipment.Rows.Count; q++)
+                                    {
+                                        string visitiID = Convert.ToString(dtvisit.Rows[0].ItemArray[0]);
+                                        objDal.InsertEquipmentDetails(Convert.ToInt32(visitiID), Convert.ToString(dtequipment.Rows[q].ItemArray[1]), Convert.ToString(dtequipment.Rows[q].ItemArray[2]), Convert.ToString(dtequipment.Rows[q].ItemArray[4]), Convert.ToString(dtequipment.Rows[q].ItemArray[3]));
+                                    }
+                                }
+                                else
+                                {
+                                    dtequipment = objDal.GetEquipmentDetails(Convert.ToInt32(dt.Rows[i].ItemArray[20]));
+                                    if (dtequipment.Rows.Count > 0)
+                                    {
+                                        for (int q = 0; q < dtequipment.Rows.Count; q++)
+                                        {
+                                            string visitiID = Convert.ToString(dtvisit.Rows[0].ItemArray[0]);
+                                            objDal.InsertEquipmentDetails(Convert.ToInt32(visitiID), Convert.ToString(dtequipment.Rows[q].ItemArray[0]), Convert.ToString(dtequipment.Rows[q].ItemArray[1]), Convert.ToString(dtequipment.Rows[q].ItemArray[2]), Convert.ToString(dtequipment.Rows[q].ItemArray[3]));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ////}
+
+                objDal.Updatecartflag(Convert.ToInt32(dt.Rows[i].ItemArray[0]), userId);
+            }
+
+            return status;
+        }
+
+        /// <summary>
+        /// Update Request
+        /// </summary>
+        /// <param name="visitorID">Visitor ID</param>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="company">Visitor Company</param>
+        /// <param name="mobileNo">Visitor MobileNo</param>
+        /// <param name="visitorType">Visitor Type</param>
+        /// <param name="others">Others text</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string UpdateRequest(string visitorID, string name, string company, string mobileNo, string visitorType, string others)
+        {
+            string status = string.Empty;
+            string userId = Common.Common.UserId();
+            Common.DALClass objDal = new Common.DALClass();
+            DataTable dtmasterID = objDal.UpdateVisitorOldDetails(name, company, mobileNo, visitorID, userId);
+            objDal.UpdateVisitorDetails(name, company, mobileNo, Convert.ToString(dtmasterID.Rows[0].ItemArray[0]), userId, visitorType, others);
+            return status;
+        }
+
+        /// <summary>
+        /// DC unique IDLink
+        /// </summary>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        [ScriptMethod]
+        public static string DCuniqueIDLink()
+        {
+            Guid guid;
+            bool dclink;
+            string unique = string.Empty;
+            ////int count_dclink = 1;
+            Common.DALClass objDal = new Common.DALClass();
+            guid = Guid.NewGuid();
+            unique = objDal.DC_uniqueID(guid.ToString());
+            dclink = true;
+            DataTable dataCentre = new DataTable();
+            if (HttpContext.Current.Session["Sess_DataCentre"] != null)
+            {
+                dataCentre = (DataTable)HttpContext.Current.Session["Sess_DataCentre"];
+                dataCentre.Rows.Add(XSS.HtmlEncode(guid.ToString()), unique);
+            }
+            else
+            {
+                dataCentre.Columns.Add("VisitorID");
+                dataCentre.Columns.Add("UniqueID");
+                dataCentre.Rows.Add(XSS.HtmlEncode(guid.ToString()), unique);
+                HttpContext.Current.Session["Sess_DataCentre"] = dataCentre;
+            }
+
+            ////HttpContext.Current.Session["UniqueID"] = unique;
+            HttpContext.Current.Session["DClink"] = dclink;
+            unique = unique + "," + guid.ToString();
+            ////HttpContext.Current.Session["Count_Dclink"] = count_dclink;
+            return unique;
+        }
+
+        /// <summary>
+        /// update dc link
+        /// </summary>
+        /// <param name="dc_visitorid">dc visitor id</param>
+        /// <returns>update dc id</returns>        
+        [WebMethod]
+        [ScriptMethod]
+        public static string DCuniqueIDLink_update(string dc_visitorid)
+        {
+            Common.DALClass objDal = new Common.DALClass();
+            string update_dcid = string.Empty;
+            DataTable dataCentreValues = new DataTable();
+            if (HttpContext.Current.Session["Sess_DataCentre"] != null)
+            {
+                dataCentreValues = (DataTable)HttpContext.Current.Session["Sess_DataCentre"];
+                for (int i = 0; i < dataCentreValues.Rows.Count; i++)
+                {
+                    if (dc_visitorid == dataCentreValues.Rows[i]["VisitorID"].ToString())
+                    {
+                        update_dcid = dataCentreValues.Rows[i]["UniqueID"].ToString();
+                    }
+                }
+            }
+            else
+            {
+                update_dcid = objDal.GetUID_DClink(dc_visitorid);
+            }
+
+            return update_dcid;
+        }
+
+        /// <summary>
+        /// Update Request Data
+        /// </summary>
+        /// <param name="visitorType">Visitor Type</param>
+        /// <param name="mobileNo">Visitor Mobile No</param>
+        /// <param name="name">Visitor Name</param>
+        /// <param name="organization">Visitor Company</param>
+        /// <param name="locationName">Visitor Location Name</param>
+        /// <param name="hostId">Host Id</param>
+        /// <param name="date">Visit Date</param>
+        /// <param name="startTime">Start Time</param>
+        /// <param name="totime">To Time</param>
+        /// <param name="isEquipment">Is Equipment</param>
+        /// <param name="visitorID">Visitor ID</param>
+        /// <param name="requestID">Request ID</param>
+        /// <param name="isEquipmenttempID">isEquipment tempID</param>
+        /// <param name="others">Others type</param>
+        /// <returns>Text String</returns>
+        [WebMethod]
+        public static string UpdateRequestData(string visitorType, string mobileNo, string name, string organization, string locationName, string hostId, string date, string startTime, string totime, string isEquipment, string visitorID, string requestID, string isEquipmenttempID, string others)
+        {
+            string status = string.Empty;
+            string userId = Common.Common.UserId();
+            Common.DALClass objDal = new Common.DALClass();
+            ////DataTable tableSearchDetails = new DataTable();
+            ////string locationname = string.Empty;
+            VMSBusinessEntity.VisitorRequest visitorRequest = new VMSBusinessEntity.VisitorRequest();
+            string validationStatus = GetTimeZoneDetails(locationName, date, startTime);
+            //597397- checking for Duplicate request
+            string[] splitdatedup = date.Split(',');
+            foreach (string singledate in splitdatedup)
+            {
+                DateTime singdat = Convert.ToDateTime(singledate);
+                string formatdate = singdat.ToString("yyyy-MM-dd");
+                DateTime fortime = Convert.ToDateTime(startTime);
+                string ftime = fortime.ToString("HH:mm:ss.fffffff");
+                DateTime to_fortime = Convert.ToDateTime(totime);
+                string toftime = to_fortime.ToString("HH:mm:ss.fffffff");
+                DataTable alreadtexist = objDal.checkDuplicaterequestforupdate(visitorType, locationName, formatdate, ftime, toftime, name, organization, mobileNo, others);
+                if (Convert.ToInt32(alreadtexist.Rows[0].ItemArray[0]) == 0)
+                {
+                    status = "success";
+                }
+                else
+                {
+                    status = "fail";
+                }
+            }
+            //597397 - end Duplicate request
+            if (validationStatus.Equals("Success"))
+            {
+                if (status.Equals("success"))
+                {
+                    objDal.UpdateVisitorDetails(name, organization, mobileNo, visitorID, userId, visitorType, others);
+                    string[] splitdate1 = Convert.ToString(date).Split(',');
+                    string[] splitdate = Convert.ToString(date).Split(',');
+                    string[] slitrequetid = requestID.Split('~');
+                    DataTable tdrequestID = new DataTable();
+                    for (int f = 0; f < splitdate1.Length; f++)
+                    {
+                        ////if (f == 0)
+                        ////{
+                        tdrequestID = objDal.InsertVisitDetails(Convert.ToInt32(slitrequetid[0]), Convert.ToString(splitdate1[f]), "update" + "~" + slitrequetid[1]);
+                        if (Convert.ToInt32(isEquipment) == 1)
+                        {
+                            ////string eqiptype = string.Empty;
+                            DataTable dtequipment = objDal.GetDummyEquipmentDetails(Convert.ToInt32(isEquipmenttempID));
+                            if (dtequipment.Rows.Count > 0)
+                            {
+                                DataTable dtequipment1 = objDal.GetEquipmentDetailsfordelete(Convert.ToInt32(slitrequetid[1]));
+                                for (int q = 0; q < dtequipment1.Rows.Count; q++)
+                                {
+                                    objDal.DeleteEquipment(Convert.ToString(dtequipment1.Rows[q].ItemArray[5]));
+                                }
+
+                                for (int q = 0; q < dtequipment.Rows.Count; q++)
+                                {
+                                    objDal.InsertEquipmentDetails(Convert.ToInt32(tdrequestID.Rows[0].ItemArray[0]), Convert.ToString(dtequipment.Rows[q].ItemArray[1]), Convert.ToString(dtequipment.Rows[q].ItemArray[2]), Convert.ToString(dtequipment.Rows[q].ItemArray[4]), Convert.ToString(dtequipment.Rows[q].ItemArray[3]));
+                                }
+                            }
+                            else
+                            {
+                                dtequipment = objDal.GetEquipmentDetailsfordelete(Convert.ToInt32(slitrequetid[1]));
+                                if (dtequipment.Rows.Count > 0)
+                                {
+                                    DataTable dtequipment1 = objDal.GetEquipmentDetailsfordelete(Convert.ToInt32(slitrequetid[1]));
+                                    for (int q = 0; q < dtequipment1.Rows.Count; q++)
+                                    {
+                                        objDal.DeleteEquipment(Convert.ToString(dtequipment1.Rows[q].ItemArray[5]));
+                                    }
+
+                                    for (int q = 0; q < dtequipment.Rows.Count; q++)
+                                    {
+                                        objDal.InsertEquipmentDetails(Convert.ToInt32(tdrequestID.Rows[0].ItemArray[0]), Convert.ToString(dtequipment.Rows[q].ItemArray[0]), Convert.ToString(dtequipment.Rows[q].ItemArray[1]), Convert.ToString(dtequipment.Rows[q].ItemArray[2]), Convert.ToString(dtequipment.Rows[q].ItemArray[3]));
+                                    }
+                                }
+                            }
+                        }
+                        ////}
+                        ////else
+                        ////{
+                        ////    tdrequestID = objDal.InsertVisitDetails(Convert.ToInt32(slitrequetid[0]), Convert.ToString(splitdate1[f]), "insert");
+                        ////}
+                    }
+
+                    DataTable dtdates = objDal.GetDatesFromVisitDetails(Convert.ToInt32(slitrequetid[0]));
+                    if (Convert.ToInt32(dtdates.Rows[0].ItemArray[0]) == 1)
+                    {
+                        visitorRequest.VisitorID = Convert.ToInt32(visitorID);
+                        visitorRequest.Facility = locationName;
+                        visitorRequest.Purpose = visitorType;
+                        string fromdate = string.Empty;
+                        string todate = string.Empty;
+
+                        //int splitlength = splitdate.Length;
+                        //if (splitlength > 1)
+                        //{
+                        //    fromdate = splitdate[0];
+                        //    todate = splitdate[splitlength - 1];
+                        //}
+                        //else
+                        //{
+                        //    fromdate = splitdate[0];
+                        //    todate = splitdate[0];
+                        //}
+
+                        visitorRequest.FromDate = Convert.ToDateTime(dtdates.Rows[0].ItemArray[2]);
+                        visitorRequest.ToDate = Convert.ToDateTime(dtdates.Rows[0].ItemArray[1]);
+                        DateTime dateTime = DateTime.ParseExact(startTime, "HH:mm", CultureInfo.InvariantCulture);
+                        TimeSpan tfromTime = dateTime.TimeOfDay;
+                        visitorRequest.FromTime = tfromTime;
+                        DateTime dateTime1 = DateTime.ParseExact(totime, "HH:mm", CultureInfo.InvariantCulture);
+                        TimeSpan ttoTime = dateTime1.TimeOfDay;
+                        visitorRequest.ToTime = ttoTime;
+                        visitorRequest.HostID = hostId;
+                        visitorRequest.ISSMSEnabled = true;
+                        visitorRequest.Status = "Updated";
+                        if (Convert.ToInt32(isEquipment) == 1)
+                        {
+                            visitorRequest.PermitITEquipments = true;
+                        }
+                        else
+                        {
+                            visitorRequest.PermitITEquipments = false;
+                        }
+
+                        visitorRequest.RequestID = Convert.ToInt32(slitrequetid[0]);
+                        visitorRequest.RequestStatus = "Yet to arrive";
+                        visitorRequest.OutlookNotfication = true;
+                        visitorRequest.Createdby = userId;
+                        objDal.UpdateRequestDetails(visitorRequest);
+                    }
+                    else
+                    {
+                        visitorRequest.VisitorID = Convert.ToInt32(visitorID);
+                        visitorRequest.Facility = locationName;
+                        visitorRequest.Purpose = visitorType;
+                        string fromdate = string.Empty;
+                        string todate = string.Empty;
+
+                        ////int splitlength = splitdate.Length;
+                        ////if (splitlength > 1)
+                        ////{
+                        ////    fromdate = splitdate[0];
+                        ////    todate = splitdate[splitlength - 1];
+                        ////}
+                        ////else
+                        ////{
+                        ////    fromdate = splitdate[0];
+                        ////    todate = splitdate[0];
+                        ////}
+
+                        visitorRequest.FromDate = Convert.ToDateTime(dtdates.Rows[0].ItemArray[2]);
+                        visitorRequest.ToDate = Convert.ToDateTime(dtdates.Rows[0].ItemArray[1]);
+                        DateTime dateTime = DateTime.ParseExact(startTime, "HH:mm", CultureInfo.InvariantCulture);
+                        TimeSpan tfromTime = dateTime.TimeOfDay;
+                        visitorRequest.FromTime = tfromTime;
+                        DateTime dateTime1 = DateTime.ParseExact(totime, "HH:mm", CultureInfo.InvariantCulture);
+                        TimeSpan ttoTime = dateTime1.TimeOfDay;
+                        visitorRequest.ToTime = ttoTime;
+                        visitorRequest.HostID = hostId;
+                        visitorRequest.ISSMSEnabled = true;
+                        visitorRequest.Status = "Updated";
+                        if (Convert.ToInt32(isEquipment) == 1)
+                        {
+                            visitorRequest.PermitITEquipments = true;
+                        }
+                        else
+                        {
+                            visitorRequest.PermitITEquipments = false;
+                        }
+
+                        visitorRequest.RequestID = Convert.ToInt32(slitrequetid[0]);
+                        visitorRequest.RequestStatus = "Yet to arrive";
+                        visitorRequest.OutlookNotfication = true;
+                        visitorRequest.Createdby = userId;
+                        objDal.UpdateRequestDetails(visitorRequest);
+                    }
+                }
+                else
+                {
+                    return status;
+                }
+            }
+            else
+            {
+                status = "Validation failed|" + validationStatus;
+            }
+            return status;
+        }
+
+        /// <summary>
+        /// cancel mail notification
+        /// </summary>
+        /// <param name="visitorID">visitor ID</param>
+        /// <param name="requestID">request ID</param>
+        public static void CancelMail(string visitorID, string requestID)
+        {
+            DALClass obj = new DALClass();
+            DALClass.PropertiesDC propertiesDC = new DALClass.PropertiesDC();
+            propertiesDC = obj.GetVisitRequestDetails(Convert.ToInt32(visitorID));
+            VMSBusinessEntity.VisitorMaster dtmaster = propertiesDC.VisitorMasterProperty;
+            VMSBusinessEntity.VisitorRequest dtrequest = propertiesDC.VisitorRequestProperty;
+            DataTable dtvisitdetails = obj.GetVisitDetails(Convert.ToString(dtrequest.RequestID));
+            string username = Common.Common.UserId();
+            string[] splithost = dtrequest.HostID.Split('(');
+            string[] splithost1 = splithost[1].Split(')');
+            string recepients = dtrequest.Createdby.ToString() + ";" + splithost1[0].Trim();
+            System.Text.StringBuilder inxml = new System.Text.StringBuilder();
+            System.Text.StringBuilder pageContent = new System.Text.StringBuilder();
+            inxml.Append("<OneCommunicator version='1'>");
+            inxml.Append("<TransactionParameters>");
+            inxml.Append(string.Concat("<Recipients>" + recepients + "</Recipients>"));
+            inxml.Append(string.Concat("<RequestId>", dtrequest.RequestID, "</RequestId>"));
+            inxml.Append(string.Concat("<Process>VMSRequestCancellation</Process>"));
+            inxml.Append(string.Concat("<GlobalAppId>116</GlobalAppId>"));
+            inxml.Append(string.Concat("</TransactionParameters>"));
+            inxml.Append(string.Concat("<ChannelParameters>"));
+            inxml.Append(string.Concat("<Email>"));
+            inxml.Append(string.Concat("<CC>" + username + "</CC>"));
+            inxml.Append(string.Concat("<BCC></BCC>"));
+            inxml.Append(string.Concat("<TemplateParameters>"));
+            string visitors = string.Empty;
+            string header = @"<tr><td width=" + "'10%'" + ">" + "<b>Name</b>" + "</td>" +
+                            @"<td width=" + "'10%'" + ">" + "<b>Company</b>" + "</td>" +
+                            @"<td width=" + "'10%'" + ">" + "<b>Mobile</b>" + "</td>" +
+                            @"<td width=" + "'10%'" + ">" + "<b>Visitor Type</b>" + "</td>" +
+                            @"<td width=" + "'10%'" + ">" + "<b>Facility</b>" + "</td>" +
+                            @"<td width=" + "'10%'" + ">" + "<b>Date and Time</b>" + "</td></tr>";
+            foreach (DataRow dr in dtvisitdetails.Rows)
+            {
+                string[] splittodate = dr.ItemArray[3].ToString().Split(' ');
+                string date = splittodate[0] + " " + "-" + " " + dtrequest.FromTime + " " + "to" + " " + dtrequest.ToTime;
+                visitors = visitors + @"<tr><td width= " + "'10%'" + ">" + dtmaster.FirstName +
+                                      @"</td><td width = " + "'10%'" + ">" + dtmaster.Company +
+                                      @"</td><td width = " + "'10%'" + ">" + dtmaster.MobileNo +
+                                      @"</td><td width = " + "'10%'" + ">" + dtrequest.Purpose +
+                                      @"</td><td width = " + "'10%'" + ">" + dtrequest.Facility +
+                                      @"</td><td width = " + "'10%'" + ">" + date +
+                                      @"</td></tr>";
+            }
+
+            visitors = header + visitors;
+            inxml.Append(string.Concat("<MobileNo>MobileNo</MobileNo>"));
+            inxml.Append(string.Concat("<AddressToken>" + visitors + "</AddressToken>"));
+            inxml.Append(string.Concat("<FacilityAddress>FacilityAddress</FacilityAddress>"));
+            inxml.Append(string.Concat("<SelectionPattern>SelectionPattern</SelectionPattern>"));
+            inxml.Append(string.Concat("<Selection>Selection</Selection>"));
+            inxml.Append(string.Concat("<DaysSelected>DaysSelected</DaysSelected>"));
+            inxml.Append(string.Concat("<Link>Link</Link>"));
+            inxml.Append(string.Concat("<Facility>Facility</Facility>"));
+            inxml.Append(string.Concat("<City>City</City>"));
+            string cancelDate = DateTime.Now.ToString("MM/dd/yyyy");
+            inxml.Append(string.Concat("<ToDate>ToDate</ToDate>"));
+            inxml.Append(string.Concat("<FromDate>" + cancelDate.Trim() + "</FromDate>"));
+            inxml.Append(string.Concat("<ServerPath>ServerPath</ServerPath>"));
+            inxml.Append(string.Concat("<Company>Company</Company>"));
+            inxml.Append(string.Concat("<VisitorType>VisitorType</VisitorType>"));
+            inxml.Append(string.Concat("<VisitorName>VisitorName</VisitorName>"));
+            string[] splithostname = dtrequest.HostID.Split('(');
+            inxml.Append(string.Concat("<HostFirstName>" + splithostname[0].Trim() + "</HostFirstName>"));
+            inxml.Append(string.Concat("<HostMailID>HostMailID</HostMailID>"));
+            inxml.Append(string.Concat("<HostID>HostID</HostID>"));
+            inxml.Append(string.Concat("</TemplateParameters></Email></ChannelParameters></OneCommunicator>"));
+            try
+            {
+                using (RequestUnifiedVASContractClient client = new RequestUnifiedVASContractClient())
+                {
+                    client.Notify(inxml.ToString(), null);
+                }
+            }
+            catch (Exception ex)
+            {
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+        }
+
+        /// <summary>
+        /// Truncate String
+        /// </summary>
+        /// <param name="myStr">my String</param>
+        /// <param name="threshold">threshold limit</param>
+        /// <returns>Text String</returns>
+        public string TruncString(string myStr, int threshold)
+        {
+            if (myStr.Length > threshold)
+            {
+                return myStr.Substring(0, threshold) + "...";
+            }
+
+            return myStr;
+        }
+
+        /// <summary>
+        /// List To Data Table
+        /// </summary>
+        /// <typeparam name="T">List Type</typeparam>
+        /// <param name="items">List Item</param>
+        /// <returns>Data Table</returns>    
+        public DataTable ToDataTable<T>(System.Collections.Generic.List<T> items)
+        {
+            DataTable dataTable = new DataTable(typeof(T).Name);
+            ////Get all the properties by using reflection   
+            PropertyInfo[] props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (PropertyInfo prop in props)
+            {
+                ////Setting column names as Property names  
+                dataTable.Columns.Add(prop.Name);
+            }
+
+            foreach (T item in items)
+            {
+                var values = new object[props.Length];
+                for (int i = 0; i < props.Length; i++)
+                {
+                    values[i] = props[i].GetValue(item, null);
+                }
+
+                dataTable.Rows.Add(values);
+            }
+
+            return dataTable;
+        }
+
+        /// <summary>
+        /// Page Load function
+        /// </summary>
+        /// <param name="sender">sender object</param>
+        /// <param name="e">para meters</param>
+        protected void Page_Load(object sender, EventArgs e)
+        {
+
+            if (!this.IsPostBack)
+            {
+                try
+                {
+                    if (Session["CovidAlertStatus"] == null || Session["CovidAlertStatus"].ToString() == "" || Session["CovidAlertStatus"].ToString() == "Y")
+                    {
+                        Session["CovidAlertStatus"] = ConfigurationManager.AppSettings.Get("AlertMessage").ToString();
+                    }
+
+                    string helpstatus = ConfigurationManager.AppSettings.Get("HelpScreen").ToString();
+                    if (Convert.ToInt32(helpstatus) == 1)
+                    {
+                        string overlaystatus = (string)this.Session["overlay"];
+                        if (overlaystatus == "1")
+                        {
+                            this.overlay.Visible = false;
+                        }
+                        else
+                        {
+                            HttpContext.Current.Session.Add("overlay", "1");
+                        }
+                    }
+                    else
+                    {
+                        this.overlay.Visible = false;
+                    }
+
+                    ////Session["Reset"] = true;
+                    ////Configuration config = WebConfigurationManager.OpenWebConfiguration("~/Web.Config");
+                    ////SessionStateSection section = (SessionStateSection)config.GetSection("system.web/sessionState");
+                    ////int timeout = (int)section.Timeout.TotalMinutes * 1000 * 60;
+                    ////ClientScript.RegisterStartupScript(this.GetType(), "SessionAlert", "SessionExpireAlert(" + timeout + ");", true);
+                    if (Request.QueryString["RequestID"] != null)
+                    {
+                        this.hdnRequestID.Value = Decrypt(Request.QueryString["RequestID"]);
+                    }
+
+                    if (Request.QueryString["VisitorID"] != null)
+                    {
+                        this.hdnvisitorID.Value = Decrypt(Request.QueryString["VisitorID"]);
+                    }
+
+                    if (Request.QueryString["VisitDetailsID"] != null)
+                    {
+                        this.hdnVisitDetailsID.Value = Decrypt(Request.QueryString["VisitDetailsID"]);
+                    }
+
+                    if (Request.QueryString["DCid"] != null)
+                    {
+                        this.hdnDCid.Value = Decrypt(Request.QueryString["DCid"]);
+                    }
+
+                    if (Request.QueryString["IsEditable"] != null)
+                    {
+                        this.hdnIsEditable.Value = XSS.HtmlEncode(Request.QueryString["IsEditable"]);
+                    }
+
+                    string userId = Common.Common.UserId();
+                    DataTable getUserDetails = this.objDal.GetUserDetails(userId);
+                    string strcurrentlocationcode = getUserDetails.Rows[0].ItemArray[12].ToString();
+                    this.hdnLocationCode.Value = strcurrentlocationcode;
+                    string strcurrentjobcode = getUserDetails.Rows[0].ItemArray[5].ToString().Substring(0, 2);
+                    string strgetjobcode = ConfigurationManager.AppSettings["JobCode"].ToString();
+                    int n;
+                    bool isNumeric = int.TryParse(strcurrentjobcode, out n);
+                    if (isNumeric == true)
+                    {
+                        if (Convert.ToInt32(strcurrentjobcode) <= Convert.ToInt32(strgetjobcode))
+                        {
+                            this.hdnMHostID.Value = getUserDetails.Rows[0].ItemArray[11].ToString();
+                            this.txthostID.Value = getUserDetails.Rows[0].ItemArray[11].ToString();
+                        }
+                    }
+
+                    DataSet dtalldetailsfornewmodel = this.objDal.GetAllDetailsforNewRequest(userId, getUserDetails.Rows[0].ItemArray[7].ToString(), string.Empty, "purpose");
+                    DataTable purpose = new DataTable();
+                    List<string> purposeDataText = new List<string>();
+                    purpose = dtalldetailsfornewmodel.Tables[0];
+                    for (int i = 0; i < purpose.Rows.Count; i++)
+                    {
+                        purposeDataText.Add(purpose.Rows[i].ItemArray[1].ToString());
+                    }
+
+                    purposeDataText.Remove("Guests");
+                    purposeDataText.Remove("Former Employee");
+                    purposeDataText.Remove("Associate Driver");
+                    purposeDataText.Remove("Auditors");
+                    purposeDataText.Remove("New Joinee");
+                    purposeDataText.Remove("Business Partner");
+                    purposeDataText.Remove("Select Purpose");
+                    var newList = purposeDataText.OrderBy(x => x).ToList();
+                    ////HttpContext.Current.Session.Add("purposeDataText", newList);
+                    this.ddlpurpose.DataSource = newList;
+                    this.ddlpurpose.DataBind();
+                    if (this.ddlpurpose.Items.Count == 0 || this.ddlpurpose.Items.Count > 0)
+                    {
+                        this.ddlpurpose.Items.Insert(0, new ListItem("Select Visitor Type", "0"));
+                    }
+
+                    MultipleLocation locationData = new MultipleLocation();
+                    locationData = this.objDal.GetAllLocationData();
+                    List<Countries> country = locationData.AllCountries;
+                    DataTable dtcountries = this.ToDataTable(country);
+                    this.ddllocationlist.DataSource = dtcountries;
+                    this.ddllocationlist.DataTextField = "Country";
+                    this.ddllocationlist.DataValueField = "Countrydesc";
+                    ////HttpContext.Current.Session.Add("LocationText", dtcountries);
+                    this.ddllocationlist.DataBind();
+                    if (this.ddllocationlist.Items.Count == 0 || this.ddllocationlist.Items.Count > 0)
+                    {
+                        this.ddllocationlist.Items.Insert(0, new ListItem("Select Visiting Location", "0"));
+                    }
+
+                    DataTable dtcode = dtalldetailsfornewmodel.Tables[7];
+                    List<string> codetext = new List<string>();
+                    foreach (DataRow c in dtcode.Rows)
+                    {
+                        codetext.Add(Convert.ToString(c.ItemArray[0]));
+                    }
+
+                    ////HttpContext.Current.Session.Add("codetext", codetext);
+                    this.ddllocationlist.Attributes.Add("onchange", "LocationChange(0)");
+                    this.ddlpurpose.Attributes.Add("onchange", "PurposeChange()");
+                }
+                catch (Exception ex)
+                {
+                    HomePage home = new HomePage();
+                    ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get Visitor Master List
+        /// </summary>
+        /// <returns>VMS Business Entity.VisitorMaster </returns>
+        private VMSBusinessEntity.VisitorMaster[] GetVisitorMasterList()
+        {
+            VMSBusinessEntity.VisitorMaster[] returnObjs = null;
+            DataTable dt = new DataTable();
+            dt = (DataTable)this.Session["DataSourceFinal"];
+            DateTime createdDate;
+            ArrayList arrayList2 = new ArrayList();
+            GenericTimeZone genTimeZone = new GenericTimeZone();
+            try
+            {
+                //// checking if Updated Candidatedetails
+                if (this.Session["ViewModify"] != null)
+                {
+                    if (this.Session["DataSourceFinal"] != this.Session["ViewModify"])
+                    {
+                        dt = (DataTable)this.Session["ViewModify"];
+                    }
+
+                    if (this.Session["ViewCandidatesEdit"] != null)
+                    {
+                        dt = (DataTable)this.Session["DataSourceFinal"];
+                    }
+                }
+
+                for (int i = 0; i < Convert.ToInt32(dt.Rows.Count); i++)
+                {
+                    VMSBusinessEntity.VisitorMaster returnObj = new VMSBusinessEntity.VisitorMaster();
+                    returnObj.FirstName = dt.Rows[i]["FirstName"].ToString().Trim();
+                    returnObj.LastName = dt.Rows[i]["LastName"].ToString().Trim();
+                    returnObj.Gender = dt.Rows[i]["Gender"].ToString().Trim();
+                    ////returnObj.Country = this.ddlNativeCountry.SelectedValue;
+                    ////returnObj.Company = this.txtOrganization.Text.Trim();
+                    ////returnObj.Designation = this.txtDesignation.Text.Trim();
+                    if (!string.IsNullOrEmpty(dt.Rows[i]["Mobile"].ToString().Trim()))
+                    {
+                        returnObj.MobileNo = string.Concat(dt.Rows[i]["Mobile"].ToString().Trim());
+                    }
+                    else
+                    {
+                        returnObj.MobileNo = string.Empty;
+                    }
+
+                    returnObj.EmailID = dt.Rows[i]["Email"].ToString().Trim();
+                    ////returnObj.CreatedBy = this.hdnHostID.Value.ToString().Trim();
+                    createdDate = genTimeZone.CurrentDate();
+                    returnObj.CreatedDate = createdDate;
+                    ////returnObj.IsConfidential = this.chkConfidential.Checked;
+                    arrayList2.Add(returnObj);
+                    returnObjs = new VMSBusinessEntity.VisitorMaster[arrayList2.Count];
+                    arrayList2.CopyTo(0, returnObjs, 0, arrayList2.Count);
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.OneC_ExceptionLogger(ex, this.Page);
+            }
+
+            return returnObjs;
+        }
+
+        /// <summary>
+        /// UnBlock Calendar in OutLook
+        /// </summary>
+        /// <param name="requestID">request ID</param>
+        private void UnBlockCalendarinOutLook(int requestID)
+        {
+            try
+            {
+                string uniqueGuID = this.objDal.SelectOutlookNotificationGuid(requestID);
+                if (uniqueGuID != null)
+                {
+                    if (!string.IsNullOrEmpty(uniqueGuID))
+                    {
+                        string subject = Convert.ToString(ConfigurationManager.AppSettings["OutlookCancelledSubject"]);
+                        Exchange2010Service exchangeServer = new Exchange2010Service();
+                        /*bool status = */
+                        exchangeServer.UnBlockFromCalender(uniqueGuID, subject);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                //throw;
+                HomePage home = new HomePage();
+                ExceptionLogger.OneC_ExceptionLogger(ex, home.Page);
+            }
+        }
+
+        [WebMethod]
+        public static bool SetCovidValue(string covidalertchk)
+        {
+            HttpContext.Current.Session["CovidAlertStatus"] = covidalertchk;
+            return true;
+        }
+
+        [WebMethod]
+        public static string GetCovidValue()
+        {
+            if (HttpContext.Current.Session["CovidAlertStatus"] != null)
+            {
+                return HttpContext.Current.Session["CovidAlertStatus"].ToString();
+            }
+            else
+                return "N";
+        }
+    }
+}
