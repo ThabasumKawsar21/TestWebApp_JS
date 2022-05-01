@@ -1,0 +1,1940 @@
+
+    function GetData(RequestID, VisitorID, IsEditable, VisitdetailsID, DCid) {              
+    location.href = "HomePage.aspx?RequestID=" + RequestID + "&VisitorID=" + VisitorID + "&IsEditable=" + IsEditable + "&VisitDetailsID=" + VisitdetailsID + "&DCid=" + DCid;
+}
+
+function DeleteData(VisitorID, RequestID) {
+    document.getElementById("Confirmmessage").style.display = "block";
+    $("#btnYesdelete").attr("onclick", "YesDelete(\"" + VisitorID + "\",\"" + RequestID + "\",'ViewCancel')");
+    $("#Confirmmessagebody").html("Are you sure you want to cancel this request ?");
+}
+
+function YesDelete(VisitorID, RequestID, status) {
+    if (status == "ViewCancel") {
+        $("#fade").show();
+        $("#modal").show();
+        $.ajax({
+            type: "POST",
+            url: "NewTrack.aspx/CancelRequest",
+            contentType: "application/json;charset=utf-8",
+            data: '{"requestID":"' + RequestID + '","vistorID":"' + VisitorID + '"}',
+            dataType: "json",
+            success: function (data) {
+                $("#btnYesdelete").removeAttr("onclick");
+                //location.href = "NewTrack.aspx";
+                $("#fade").hide();
+                $("#modal").hide();
+                document.getElementById('UpdateSucessmessage').style.display = 'block';
+                $("#UpdateSucessmessagebody").html("Request has been cancelled successfully.");               
+            },
+            error: function (result) {
+                $("#fade").hide();
+                $("#modal").hide();
+
+            }
+        });
+    }
+    document.getElementById("Confirmmessage").style.display = "none";
+    $("#btnYesdelete").removeAttr("onclick");
+}
+
+function Outfromfocus() {
+    var FromDate = $("#txtfromDate").val();
+    var ToDate = $("#txttoDate").val();
+    var Search=$("#txtserachtext").val();
+    if (FromDate == "" || FromDate == null || FromDate == undefined) {
+        $.ajax({
+            type: "POST",
+            url: "NewTrack.aspx/GetForthComingData",
+            contentType: "application/json;charset=utf-8",
+            data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+            dataType: "json",
+            success: function (data) {
+                var Todaytable = JSON.parse(data.d);
+                Todaytable_Append = "";
+                if (Todaytable.length > 0) {
+                    for (var i = 0; i < Todaytable.length; i++) {
+                        if (i % 2 == 0) {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        else {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        if (Todaytable[i].Name == "Bulk Entries") {
+                            $.ajax({
+                                type: "POST",
+                                url: "NewTrack.aspx/GetBulkCount",
+                                contentType: "application/json;charset=utf-8",
+                                data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                dataType: "json",
+                                async: false,
+                                success: function (data) {
+                                    var Todaytable1 = JSON.parse(data.d);
+                                    Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId +"\")' title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                },
+                                error: function (result) {
+                                    //alert("Error login");
+                                }
+                            });
+                        }
+                        else {
+                            Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                        }
+                        Todaytable_Append += "<td style='width:200px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                        Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                        Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                        Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                        Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                        Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                        var timeString = Todaytable[i].Time;
+                        var H = +timeString.substr(0, 2);
+                        var h = H % 12 || 12;
+                        var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                        timeString = h + timeString.substr(2, 3) + ampm;
+
+                        var timeString1 = Todaytable[i].ToTime;
+                        var H1 = +timeString1.substr(0, 2);
+                        var h1 = H1 % 12 || 12;
+                        var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                        timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                        if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked In") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked Out") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                            var timeString3 = Todaytable[i].ActualOutTime;
+                            var H3 = +timeString3.substr(0, 2);
+                            var h3 = H3 % 12 || 12;
+                            var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                            timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                        }
+                        else {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+
+                        if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+
+
+                        // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                        //    Todaytable_Append += "<td></td>";
+                        //}
+                        else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        Todaytable_Append += "</tr>";
+                    }
+                }
+                else {
+                    $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                    $("#Tableview tbody tr td").css("border", "none");
+                    Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                }
+                $("#Todaytablebody").html(Todaytable_Append);
+                $('.scroll-slim').slimScroll({
+                    height: '444px',
+                    width: '100%'
+                });
+                var arrOfTable1 = [],
+                    i = 0;
+
+                $('.Tableview:eq(0) td').each(function () {
+                    mWid = $(this).width();
+                    arrOfTable1.push(mWid);
+                });
+
+                $('.Tableview:eq(1) td').each(function () {
+                    $(this).css("min-width", arrOfTable1[i] + "px");
+                    i++;
+                }); 
+                $("#fade").hide();
+                $("#modal").hide();
+                $("#theditrows").show();
+                $("#thvisitorstatus").css("width", "125px");
+                $("#PREVIOUS").css('color', '#4c4c4c');
+                $("#TODAY").css('color', '#0033a0');
+                //$('#Tableview').DataTable();
+            },
+            error: function (result) {
+                //alert("Error login");
+
+            }
+        });
+    }
+}
+
+function GetBulkDataforexcel(DetailsID) {
+    //$.ajax({
+    //    type: "POST",
+    //    url: "NewTrack.aspx/GetBulkDataForview",
+    //    contentType: "application/json;charset=utf-8",
+    //    data: '{"vistorDetailsID":"' + DetailsID + '"}',
+    //    dataType: "json",
+    //    success: function (data) {
+    //        var Todaytable = JSON.parse(data.d);
+    //        alert(Todaytable);
+    //        window.location.href = Todaytable;
+    //    },
+    //    error: function (result) {
+    //        //alert("Error login");
+    //    }
+    //});
+    $('#iframe').attr('src', 'Downloadexcel.aspx?DetailsID=' + DetailsID);
+    $('#iframe').load();
+}
+
+function Outtofocus() {
+    var FromDate = $("#txtfromDate").val();
+    var ToDate = $("#txttoDate").val();
+    var Search = $("#txtserachtext").val();
+    if (FromDate == "" || FromDate == null || FromDate == undefined) {
+        $.ajax({
+            type: "POST",
+            url: "NewTrack.aspx/GetForthComingData",
+            contentType: "application/json;charset=utf-8",
+            data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+            dataType: "json",
+            success: function (data) {
+                var Todaytable = JSON.parse(data.d);
+                Todaytable_Append = "";
+                if (Todaytable.length > 0) {
+                    for (var i = 0; i < Todaytable.length; i++) {
+                        if (i % 2 == 0) {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        else {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        if (Todaytable[i].Name == "Bulk Entries") {
+                            $.ajax({
+                                type: "POST",
+                                url: "NewTrack.aspx/GetBulkCount",
+                                contentType: "application/json;charset=utf-8",
+                                data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                dataType: "json",
+                                async: false,
+                                success: function (data) {
+                                    var Todaytable1 = JSON.parse(data.d);
+                                    Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId+"\")' title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                },
+                                error: function (result) {
+                                    //alert("Error login");
+                                }
+                            });
+                        }
+                        else {
+                            Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                        }
+                        Todaytable_Append += "<td style='width:200px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                        Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                        Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                        Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                        Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                        Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                        var timeString = Todaytable[i].Time;
+                        var H = +timeString.substr(0, 2);
+                        var h = H % 12 || 12;
+                        var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                        timeString = h + timeString.substr(2, 3) + ampm;
+
+                        var timeString1 = Todaytable[i].ToTime;
+                        var H1 = +timeString1.substr(0, 2);
+                        var h1 = H1 % 12 || 12;
+                        var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                        timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                        if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked In") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked Out") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                            var timeString3 = Todaytable[i].ActualOutTime;
+                            var H3 = +timeString3.substr(0, 2);
+                            var h3 = H3 % 12 || 12;
+                            var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                            timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                        }
+                        else {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+
+                        if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+
+
+                        // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                        //    Todaytable_Append += "<td></td>";
+                        //}
+                        else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        Todaytable_Append += "</tr>";
+                    }
+                }
+                else {
+                    $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                    $("#Tableview tbody tr td").css("border", "none");
+                    Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                }
+                $("#Todaytablebody").html(Todaytable_Append);
+                $('.scroll-slim').slimScroll({
+                    height: '444px',
+                    width: '100%'
+                });
+                var arrOfTable1 = [],
+                    i = 0;
+
+                $('.Tableview:eq(0) td').each(function () {
+                    mWid = $(this).width();
+                    arrOfTable1.push(mWid);
+                });
+
+                $('.Tableview:eq(1) td').each(function () {
+                    $(this).css("min-width", arrOfTable1[i] + "px");
+                    i++;
+                }); 
+                $("#fade").hide();
+                $("#modal").hide();
+                $("#theditrows").show();
+                $("#thvisitorstatus").css("width", "125px");
+                $("#PREVIOUS").css('color', '#4c4c4c');
+                $("#TODAY").css('color', '#0033a0');
+                //$('#Tableview').DataTable();
+            },
+            error: function (result) {
+                //alert("Error login");
+
+            }
+        });
+    }
+}
+
+function hide_dp() {
+    $(".datepicker").datepicker('hide');
+    $(".datepicker").datepicker('remove');
+    $("#txtfromDate").datepicker({
+        clearBtn: true,
+        todayHighlight: true
+    });
+
+    $("#txttoDate").datepicker({
+        clearBtn: true,
+        todayHighlight: true
+    });
+}
+
+
+$(document).ready(function () {
+    window.addEventListener('keyup', function (e) {
+        e.preventDefault();
+        var X = $("#txtserachtext").val();
+        if (X != null && X != "" && X != undefined) {
+            if (e.keyCode === 13) {
+                document.getElementById("btnsubmit").click();
+            }
+        }
+        else {
+            $.ajax({
+                type: "POST",
+                url: "NewTrack.aspx/GetForthComingData",
+                contentType: "application/json;charset=utf-8",
+                data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+                dataType: "json",
+                success: function (data) {
+                    var Todaytable = JSON.parse(data.d);
+                    Todaytable_Append = "";
+                    if (Todaytable.length > 0) {
+                        for (var i = 0; i < Todaytable.length; i++) {
+                            if (i % 2 == 0) {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            else {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            if (Todaytable[i].Name == "Bulk Entries") {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "NewTrack.aspx/GetBulkCount",
+                                    contentType: "application/json;charset=utf-8",
+                                    data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                    dataType: "json",
+                                    async: false,
+                                    success: function (data) {
+                                        var Todaytable1 = JSON.parse(data.d);
+                                        Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId + "\")' title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                    },
+                                    error: function (result) {
+                                        //alert("Error login");
+                                    }
+                                });
+                            }
+                            else {
+                                Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                            }
+                            Todaytable_Append += "<td style='width:183px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                            Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                            Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                            Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                            Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                            Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                            var timeString = Todaytable[i].Time;
+                            var H = +timeString.substr(0, 2);
+                            var h = H % 12 || 12;
+                            var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                            timeString = h + timeString.substr(2, 3) + ampm;
+
+                            var timeString1 = Todaytable[i].ToTime;
+                            var H1 = +timeString1.substr(0, 2);
+                            var h1 = H1 % 12 || 12;
+                            var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                            timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                            if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked In") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked Out") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                                var timeString3 = Todaytable[i].ActualOutTime;
+                                var H3 = +timeString3.substr(0, 2);
+                                var h3 = H3 % 12 || 12;
+                                var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                                timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                            }
+                            else {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+
+                            if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+
+
+                            // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                            //    Todaytable_Append += "<td></td>";
+                            //}
+                            else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+                            else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+                            else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                                Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                                Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                                Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                            }
+                            Todaytable_Append += "</tr>";
+                        }
+                    }
+                    else {
+                        $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                        $("#Tableview tbody tr td").css("border", "none");
+                        Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                    }
+                    $("#Todaytablebody").html(Todaytable_Append);
+                    $('.scroll-slim').slimScroll({
+                        height: '444px',
+                        width: '100%'
+                    });
+                    var arrOfTable1 = [],
+                        i = 0;
+
+                    $('.Tableview:eq(0) td').each(function () {
+                        mWid = $(this).width();
+                        arrOfTable1.push(mWid);
+                    });
+
+                    $('.Tableview:eq(1) td').each(function () {
+                        $(this).css("min-width", arrOfTable1[i] + "px");
+                        i++;
+                    }); 
+                    $("#fade").hide();
+                    $("#modal").hide();
+                    $("#theditrows").show();
+                    $("#thvisitorstatus").css("width", "125px");
+                    $("#PREVIOUS").css('color', '#4c4c4c');
+                    $("#TODAY").css('color', '#0033a0');
+                    //$('#Tableview').DataTable();
+                },
+                error: function (result) {
+                    //alert("Error login");
+
+                }
+            });
+        }
+    }, false);
+
+    $("#fade").show();
+    $("#modal").show();
+
+
+    $("#PREVIOUS").click(function () {
+        $("#PREVIOUS").css('color', '#0033a0');
+        $("#TODAY").css('color', '#4c4c4c');
+        $("#FORTHCOMING").css('color', '#ffffff');
+        $("#hrPREVIOUS").show();
+        $("#hrTODAY").hide();
+        $("#hrFORTHCOMING").hide();
+        $("#theditrows").hide();
+        $("#thvisitorstatus").css("width", "120px");
+        $("#txtfromDate").val("");
+        $("#txttoDate").val("");
+        $("#txtserachtext").val("");
+    });
+
+    $("#TODAY").click(function () {
+        $("#PREVIOUS").css('color', '#4c4c4c');
+        $("#TODAY").css('color', '#0033a0');
+        $("#FORTHCOMING").css('color', '#ffffff');
+        $("#hrPREVIOUS").hide();
+        $("#hrTODAY").show();
+        $("#hrFORTHCOMING").hide();
+        $("#theditrows").show();
+        $("#thvisitorstatus").css("width", "125px");
+        $("#txtfromDate").val("");
+        $("#txttoDate").val("");
+        $("#txtserachtext").val("");
+    });
+
+    $("#FORTHCOMING").click(function () {
+        $("#PREVIOUS").css('color', '#ffffff');
+        $("#TODAY").css('color', '#ffffff');
+        $("#FORTHCOMING").css('color', '#00b140');
+        $("#hrPREVIOUS").hide();
+        $("#hrTODAY").hide();
+        $("#hrFORTHCOMING").show();
+        $("#theditrows").show();
+        $("#thvisitorstatus").css("width", "125px");
+    });
+    $("#btnReset").click(function () {
+        $("#fade").show();
+        $("#modal").show();
+        $("#txtfromDate").val("");
+        $("#txttoDate").val("");
+        $("#txtserachtext").val("");
+        var rtext = $("#PREVIOUS").css("color");
+        if (rtext != "rgb(76, 76, 76)") {
+            $.ajax({
+                type: "POST",
+                url: "NewTrack.aspx/GetPreviousData",
+                contentType: "application/json;charset=utf-8",
+                data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+                dataType: "json",
+                success: function (data) {
+                    var Todaytable = JSON.parse(data.d);
+                    Todaytable_Append = "";
+                    if (Todaytable.length > 0) {
+                        for (var i = 0; i < Todaytable.length; i++) {
+                            if (i % 2 == 0) {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            else {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            if (Todaytable[i].Name == "Bulk Entries") {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "NewTrack.aspx/GetBulkCount",
+                                    contentType: "application/json;charset=utf-8",
+                                    data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                    dataType: "json",
+                                    async: false,
+                                    success: function (data) {
+                                        var Todaytable1 = JSON.parse(data.d);
+                                        Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId + "\")'  title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                    },
+                                    error: function (result) {
+                                        //alert("Error login");
+                                    }
+                                });
+                            }
+                            else {
+                                Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                            }
+                            Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].Company + "</td>";
+                            Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].VisitorType + "</td>";
+                            Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].VisitLocation + "</td>";
+                            Todaytable_Append += "<td>" + Todaytable[i].Date + "</td>";
+                            Todaytable_Append += "<td>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                            Todaytable_Append += "<td>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                            var timeString = Todaytable[i].Time;
+                            var H = +timeString.substr(0, 2);
+                            var h = H % 12 || 12;
+                            var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                            timeString = h + timeString.substr(2, 3) + ampm;
+
+                            var timeString1 = Todaytable[i].ToTime;
+                            var H1 = +timeString1.substr(0, 2);
+                            var h1 = H1 % 12 || 12;
+                            var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                            timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                            if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked In") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked Out") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                                var timeString3 = Todaytable[i].ActualOutTime;
+                                var H3 = +timeString3.substr(0, 2);
+                                var h3 = H3 % 12 || 12;
+                                var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                                timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                            }
+                            else {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            // Todaytable_Append += "<td></td>";
+                            Todaytable_Append += "</tr>";
+                        }
+                    }
+                    else {
+                        $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                        $("#Tableview tbody tr td").css("border", "none");
+                        Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                    }
+                    $("#Todaytablebody").html(Todaytable_Append);
+                    $('.scroll-slim').slimScroll({
+                        height: '444px',
+                        width: '100%'
+                    });
+                    var arrOfTable1 = [],
+                        i = 0;
+
+                    $('.Tableview:eq(0) td').each(function () {
+                        mWid = $(this).width();
+                        arrOfTable1.push(mWid);
+                    });
+
+                    $('.Tableview:eq(1) td').each(function () {
+                        $(this).css("min-width", arrOfTable1[i] + "px");
+                        i++;
+                    }); 
+                    $("#fade").hide();
+                    $("#modal").hide();
+                },
+                error: function (result) {
+                    //alert("Error login");
+
+                }
+            });
+        }
+        else {
+            $.ajax({
+                type: "POST",
+                url: "NewTrack.aspx/GetForthComingData",
+                contentType: "application/json;charset=utf-8",
+                data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+                dataType: "json",
+                success: function (data) {
+                    var Todaytable = JSON.parse(data.d);
+                    Todaytable_Append = "";
+                    if (Todaytable.length > 0) {
+                        for (var i = 0; i < Todaytable.length; i++) {
+                            if (i % 2 == 0) {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            else {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            if (Todaytable[i].Name == "Bulk Entries") {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "NewTrack.aspx/GetBulkCount",
+                                    contentType: "application/json;charset=utf-8",
+                                    data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                    dataType: "json",
+                                    async: false,
+                                    success: function (data) {
+                                        var Todaytable1 = JSON.parse(data.d);
+                                        Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId + "\")' title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                    },
+                                    error: function (result) {
+                                        //alert("Error login");
+                                    }
+                                });
+                            }
+                            else {
+                                Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                            }
+                            Todaytable_Append += "<td style='width:200px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                            Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                            Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                            Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                            Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                            Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                            var timeString = Todaytable[i].Time;
+                            var H = +timeString.substr(0, 2);
+                            var h = H % 12 || 12;
+                            var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                            timeString = h + timeString.substr(2, 3) + ampm;
+
+                            var timeString1 = Todaytable[i].ToTime;
+                            var H1 = +timeString1.substr(0, 2);
+                            var h1 = H1 % 12 || 12;
+                            var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                            timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                            if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked In") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked Out") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                                 var timeString3 = Todaytable[i].ActualOutTime;
+                                var H3 = +timeString3.substr(0, 2);
+                                var h3 = H3 % 12 || 12;
+                                var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                                timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                            }
+                            else {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+
+                            if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+
+
+                            // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                            //    Todaytable_Append += "<td></td>";
+                            //}
+                            else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+                            else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+                            else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                                Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                                Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                                Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                            }
+                            Todaytable_Append += "</tr>";
+                        }
+                    }
+                    else {
+                        $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                        $("#Tableview tbody tr td").css("border", "none");
+                        Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                    }
+                    $("#Todaytablebody").html(Todaytable_Append);
+                    $('.scroll-slim').slimScroll({
+                        height: '444px',
+                        width: '100%'
+                    });
+                    var arrOfTable1 = [],
+                        i = 0;
+
+                    $('.Tableview:eq(0) td').each(function () {
+                        mWid = $(this).width();
+                        arrOfTable1.push(mWid);
+                    });
+
+                    $('.Tableview:eq(1) td').each(function () {
+                        $(this).css("min-width", arrOfTable1[i] + "px");
+                        i++;
+                    }); 
+                    $("#fade").hide();
+                    $("#modal").hide();
+                    $("#theditrows").show();
+                    $("#thvisitorstatus").css("width", "125px");
+                    $("#PREVIOUS").css('color', '#4c4c4c');
+                    $("#TODAY").css('color', '#0033a0');
+                    //$('#Tableview').DataTable();
+                },
+                error: function (result) {
+                    //alert("Error login");
+
+                }
+            });
+        }
+    });
+
+
+
+    $("#btnsubmit").click(function () {
+        $("#fade").show();
+        $("#modal").show();
+        var FromDate = $("#txtfromDate").val();
+        var ToDate = $("#txttoDate").val();
+        var dateOne = new Date(FromDate); //Year, Month, Date
+        var dateTwo = new Date(ToDate); //Year, Month, Date
+        if (dateOne > dateTwo) {
+            document.getElementById("Sucessmessage").style.display = "block";
+            $("#Sucessmessagebody").html("To date should be greater than From date.");
+            $("#fade").hide();
+            $("#modal").hide();
+            return false;
+        }
+        else if (dateOne == dateTwo) {
+            document.getElementById("Sucessmessage").style.display = "block";
+            $("#Sucessmessagebody").html("From date and To date should not be same.");
+            $("#fade").hide();
+            $("#modal").hide();
+            return false;
+        }
+        else {
+            $("#fade").hide();
+            $("#modal").hide();
+        }
+        var Search = $("#txtserachtext").val();
+        var rtext = $("#PREVIOUS").css("color");
+        if (rtext != "rgb(76, 76, 76)") {
+            $.ajax({
+                type: "POST",
+                url: "NewTrack.aspx/GetPreviousData",
+                contentType: "application/json;charset=utf-8",
+                data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+                dataType: "json",
+                success: function (data) {
+                    var Todaytable = JSON.parse(data.d);
+                    Todaytable_Append = "";
+                    if (Todaytable.length > 0) {
+                        for (var i = 0; i < Todaytable.length; i++) {
+                            if (i % 2 == 0) {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            else {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            if (Todaytable[i].Name == "Bulk Entries") {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "NewTrack.aspx/GetBulkCount",
+                                    contentType: "application/json;charset=utf-8",
+                                    data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                    dataType: "json",
+                                    async: false,
+                                    success: function (data) {
+                                        var Todaytable1 = JSON.parse(data.d);
+                                        Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId + "\")'  title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                    },
+                                    error: function (result) {
+                                        //alert("Error login");
+                                    }
+                                });
+                            }
+                            else {
+                                Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                            }
+                            Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].Company + "</td>";
+                            Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].VisitorType + "</td>";
+                            Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].VisitLocation + "</td>";
+                            Todaytable_Append += "<td>" + Todaytable[i].Date + "</td>";
+                            Todaytable_Append += "<td>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                            Todaytable_Append += "<td>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                            var timeString = Todaytable[i].Time;
+                            var H = +timeString.substr(0, 2);
+                            var h = H % 12 || 12;
+                            var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                            timeString = h + timeString.substr(2, 3) + ampm;
+
+                            var timeString1 = Todaytable[i].ToTime;
+                            var H1 = +timeString1.substr(0, 2);
+                            var h1 = H1 % 12 || 12;
+                            var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                            timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                            if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked In") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked Out") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                                var timeString3 = Todaytable[i].ActualOutTime;
+                                var H3 = +timeString3.substr(0, 2);
+                                var h3 = H3 % 12 || 12;
+                                var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                                timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                            }
+                            else {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            // Todaytable_Append += "<td></td>";
+                            Todaytable_Append += "</tr>";
+                        }
+                    }
+                    else {
+                        $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                        $("#Tableview tbody tr td").css("border", "none");
+                        Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                    }
+                    $("#Todaytablebody").html(Todaytable_Append);
+                    $('.scroll-slim').slimScroll({
+                        height: '444px',
+                        width: '100%'
+                    });
+                    var arrOfTable1 = [],
+                        i = 0;
+
+                    $('.Tableview:eq(0) td').each(function () {
+                        mWid = $(this).width();
+                        arrOfTable1.push(mWid);
+                    });
+
+                    $('.Tableview:eq(1) td').each(function () {
+                        $(this).css("min-width", arrOfTable1[i] + "px");
+                        i++;
+                    }); 
+                    $("#fade").hide();
+                    $("#modal").hide();
+                },
+                error: function (result) {
+                    //alert("Error login");
+
+                }
+            });
+        }
+        else {
+            $.ajax({
+                type: "POST",
+                url: "NewTrack.aspx/GetForthComingData",
+                contentType: "application/json;charset=utf-8",
+                data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+                dataType: "json",
+                success: function (data) {
+                    var Todaytable = JSON.parse(data.d);
+                    Todaytable_Append = "";
+                    if (Todaytable.length > 0) {
+                        for (var i = 0; i < Todaytable.length; i++) {
+                            if (i % 2 == 0) {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            else {
+                                Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                            }
+                            if (Todaytable[i].Name == "Bulk Entries") {
+                                $.ajax({
+                                    type: "POST",
+                                    url: "NewTrack.aspx/GetBulkCount",
+                                    contentType: "application/json;charset=utf-8",
+                                    data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                    dataType: "json",
+                                    async: false,
+                                    success: function (data) {
+                                        var Todaytable1 = JSON.parse(data.d);
+                                        Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId + "\")'  title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                    },
+                                    error: function (result) {
+                                        //alert("Error login");
+                                    }
+                                });
+                            }
+                            else {
+                                Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                            }
+                            Todaytable_Append += "<td style='width:200px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                            Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                            Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                            Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                            Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                            Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                            var timeString = Todaytable[i].Time;
+                            var H = +timeString.substr(0, 2);
+                            var h = H % 12 || 12;
+                            var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                            timeString = h + timeString.substr(2, 3) + ampm;
+
+                            var timeString1 = Todaytable[i].ToTime;
+                            var H1 = +timeString1.substr(0, 2);
+                            var h1 = H1 % 12 || 12;
+                            var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                            timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                            if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked In") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+                            else if (Todaytable[i].RequestStatus == "Checked Out") {
+                                var timeString2 = Todaytable[i].ActualInTime;
+                                var H2 = +timeString2.substr(11, 2);
+                                var h2 = H2 % 12 || 12;
+                                var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                                timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                                var timeString3 = Todaytable[i].ActualOutTime;
+                                var H3 = +timeString3.substr(0, 2);
+                                var h3 = H3 % 12 || 12;
+                                var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                                timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                                }
+                            }
+                            else {
+                                if (i == 0) {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                                else {
+                                    Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                                }
+                            }
+
+                            if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+
+
+                            // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                            //    Todaytable_Append += "<td></td>";
+                            //}
+                            else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+                            else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                                Todaytable_Append += "<td></td>";
+                            }
+                            else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                                Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                                Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                                Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                            }
+                            Todaytable_Append += "</tr>";
+                        }
+                    }
+                    else {
+                        $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                        $("#Tableview tbody tr td").css("border", "none");
+                        Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                    }
+                    $("#Todaytablebody").html(Todaytable_Append);
+                    $('.scroll-slim').slimScroll({
+                        height: '444px',
+                        width: '100%'
+                    });
+                    var arrOfTable1 = [],
+                        i = 0;
+
+                    $('.Tableview:eq(0) td').each(function () {
+                        mWid = $(this).width();
+                        arrOfTable1.push(mWid);
+                    });
+
+                    $('.Tableview:eq(1) td').each(function () {
+                        $(this).css("min-width", arrOfTable1[i] + "px");
+                        i++;
+                    }); 
+                    $("#fade").hide();
+                    $("#modal").hide();
+                    $("#theditrows").show();
+                    $("#thvisitorstatus").css("width", "125px");
+                    //$("#PREVIOUS").css('color', '#4c4c4c');
+                    //$("#TODAY").css('color', '#0033a0');
+                    //$('#Tableview').DataTable();
+                },
+                error: function (result) {
+                    //alert("Error login");
+
+                }
+            });
+        }
+    });
+    $("#nav-home").removeClass("selected");
+    $("#nav-track").addClass("selected");
+    $("#imgStartdate").on("click", function () {
+        $("#txtfromDate").datepicker('show');
+    });
+    $("#imgEndDate").on("click", function () {
+        $("#txttoDate").datepicker('show');
+    });
+    $("#txtfromDate").datepicker({
+        clearBtn: true,
+        todayHighlight: true         
+    });
+
+    $("#txttoDate").datepicker({
+        clearBtn: true,
+        todayHighlight: true
+    });
+    var FromDate = $("#txtfromDate").val();
+    var ToDate = $("#txttoDate").val();
+    var Search = $("#txtserachtext").val();
+    $.ajax({
+        type: "POST",
+        url: "NewTrack.aspx/GetForthComingData",
+        contentType: "application/json;charset=utf-8",
+        data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+        dataType: "json",
+        async: false,
+        success: function (data) {
+            var Todaytable = JSON.parse(data.d);
+            Todaytable_Append = "";
+            if (Todaytable.length > 0) {
+                for (var i = 0; i < Todaytable.length; i++) {
+                    if (i % 2 == 0) {
+                        Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                    }
+                    else {
+                        Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                    }
+                    if (Todaytable[i].Name == "Bulk Entries") {
+                        $.ajax({
+                            type: "POST",
+                            url: "NewTrack.aspx/GetBulkCount",
+                            contentType: "application/json;charset=utf-8",
+                            data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                            dataType: "json",
+                            async: false,
+                            success: function (data) {
+                                var Todaytable1 = JSON.parse(data.d);
+                                Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId +"\")' title='Click here to download'>"+Todaytable1+"</a>"+")"+ "</td>";
+                            },
+                            error: function (result) {
+                                //alert("Error login");
+                            }
+                        });                      
+                    }
+                    else {
+                        Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                    }
+                    Todaytable_Append += "<td style='width:224px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                    Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                    Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                    Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                    Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                    Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                    var timeString = Todaytable[i].Time;
+                    var H = +timeString.substr(0, 2);
+                    var h = H % 12 || 12;
+                    var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                    timeString = h + timeString.substr(2, 3) + ampm;
+
+                    var timeString1 = Todaytable[i].ToTime;
+                    var H1 = +timeString1.substr(0, 2);
+                    var h1 = H1 % 12 || 12;
+                    var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                    timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                    if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                        if (i == 0) {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                        }
+                    }
+                    else if (Todaytable[i].RequestStatus == "Checked In") {
+                        var timeString2 = Todaytable[i].ActualInTime;
+                        var H2 = +timeString2.substr(11, 2);
+                        var h2 = H2 % 12 || 12;
+                        var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                        timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                        if (i == 0) {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                        }
+                    }
+                    else if (Todaytable[i].RequestStatus == "Checked Out") {
+                        var timeString2 = Todaytable[i].ActualInTime;
+                        var H2 = +timeString2.substr(11, 2);
+                        var h2 = H2 % 12 || 12;
+                        var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                        timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                        var timeString3 = Todaytable[i].ActualOutTime;
+                        var H3 = +timeString3.substr(0, 2);
+                        var h3 = H3 % 12 || 12;
+                        var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                        timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                        if (i == 0) {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                        }
+                    }
+                    else {
+                        if (i == 0) {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                        }
+                    }
+
+                    if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                        Todaytable_Append += "<td style='width:53px;'></td>";
+                    }
+
+
+                    // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                    //    Todaytable_Append += "<td></td>";
+                    //}
+                    else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                        Todaytable_Append += "<td style='width:53px;'></td>";
+                    }
+                    else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                        Todaytable_Append += "<td style='width:53px;'></td>";
+                    }
+                    else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                        Todaytable_Append += "<td style='width:53px;'><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                        Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                    }
+                    else {
+                        Todaytable_Append += "<td style='width:53px;'><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                        Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                    }
+                    Todaytable_Append += "</tr>";
+                }
+            }
+            else {
+                $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                $("#Tableview tbody tr td").css("border", "none");
+                Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+            }
+            $("#Todaytablebody").html(Todaytable_Append);
+            $('.scroll-slim').slimScroll({
+                height: '444px',
+                width: '100%'
+            });
+            var  arrOfTable1 = [],
+                    i = 0;
+
+            $('.Tableview:eq(0) td').each(function ()  {
+                 mWid  =  $(this).width();
+                 arrOfTable1.push(mWid);
+            });
+
+            $('.Tableview:eq(1) td').each(function ()  {
+                 $(this).css("min-width", arrOfTable1[i] + "px");
+                i++;
+            }); 
+            $("#fade").hide();
+            $("#modal").hide();
+            //$('#Tableview').DataTable();
+        },
+        error: function (result) {
+            //alert("Error login");
+
+        }
+    });
+
+    $("#PREVIOUS").click(function () {
+        $("#fade").show();
+        $("#modal").show();
+        var FromDate = $("#txtfromDate").val();
+        var ToDate = $("#txttoDate").val();
+        var Search = $("#txtserachtext").val();
+        $.ajax({
+            type: "POST",
+            url: "NewTrack.aspx/GetPreviousData",
+            contentType: "application/json;charset=utf-8",
+            data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+            dataType: "json",
+            success: function (data) {
+                var Todaytable = JSON.parse(data.d);
+                Todaytable_Append = "";
+                if (Todaytable.length > 0) {
+                    for (var i = 0; i < Todaytable.length; i++) {
+                        if (i % 2 == 0) {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        else {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        if (Todaytable[i].Name == "Bulk Entries") {
+                            $.ajax({
+                                type: "POST",
+                                url: "NewTrack.aspx/GetBulkCount",
+                                contentType: "application/json;charset=utf-8",
+                                data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                dataType: "json",
+                                async: false,
+                                success: function (data) {
+                                    var Todaytable1 = JSON.parse(data.d);
+                                    Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId + "\")'  title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                },
+                                error: function (result) {
+                                    //alert("Error login");
+                                }
+                            });
+                        }
+                        else {
+                            Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                        }
+                        Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].Company + "</td>";
+                        Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].VisitorType + "</td>";
+                        Todaytable_Append += "<td style='width:15%;'>" + Todaytable[i].VisitLocation + "</td>";
+                        Todaytable_Append += "<td>" + Todaytable[i].Date + "</td>";
+                        Todaytable_Append += "<td>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                        Todaytable_Append += "<td>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                        var timeString = Todaytable[i].Time;
+                        var H = +timeString.substr(0, 2);
+                        var h = H % 12 || 12;
+                        var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                        timeString = h + timeString.substr(2, 3) + ampm;
+
+                        var timeString1 = Todaytable[i].ToTime;
+                        var H1 = +timeString1.substr(0, 2);
+                        var h1 = H1 % 12 || 12;
+                        var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                        timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                        if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked In") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked Out") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                            var timeString3 = Todaytable[i].ActualOutTime;
+                            var H3 = +timeString3.substr(0, 2);
+                            var h3 = H3 % 12 || 12;
+                            var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                            timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                        }
+                        else {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                       // Todaytable_Append += "<td></td>";
+                        Todaytable_Append += "</tr>";
+                    }
+                }
+                else {
+                    $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                    $("#Tableview tbody tr td").css("border", "none");
+                    Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                }
+                $("#Todaytablebody").html(Todaytable_Append);
+                $('.scroll-slim').slimScroll({
+                    height: '444px',
+                    width: '100%'
+                });
+                var arrOfTable1 = [],
+                    i = 0;
+
+                $('.Tableview:eq(0) td').each(function () {
+                    mWid = $(this).width();
+                    arrOfTable1.push(mWid);
+                });
+
+                $('.Tableview:eq(1) td').each(function () {
+                    $(this).css("min-width", arrOfTable1[i] + "px");
+                    i++;
+                }); 
+                $("#fade").hide();
+                $("#modal").hide();
+            },
+            error: function (result) {
+                //alert("Error login");
+
+            }
+        });
+    });
+
+    $("#TODAY").click(function () {
+        $("#fade").show();
+        $("#modal").show();
+        var FromDate = $("#txtfromDate").val();
+        var ToDate = $("#txttoDate").val();
+        var Search = $("#txtserachtext").val();
+        $.ajax({
+            type: "POST",
+            url: "NewTrack.aspx/GetForthComingData",
+            contentType: "application/json;charset=utf-8",
+            data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+            dataType: "json",
+            success: function (data) {
+                var Todaytable = JSON.parse(data.d);
+                Todaytable_Append = "";
+                if (Todaytable.length > 0) {
+                    for (var i = 0; i < Todaytable.length; i++) {
+                        if (i % 2 == 0) {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        else {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        if (Todaytable[i].Name == "Bulk Entries") {
+                            $.ajax({
+                                type: "POST",
+                                url: "NewTrack.aspx/GetBulkCount",
+                                contentType: "application/json;charset=utf-8",
+                                data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                dataType: "json",
+                                async: false,
+                                success: function (data) {
+                                    var Todaytable1 = JSON.parse(data.d);
+                                    Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId +"\")' title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                },
+                                error: function (result) {
+                                    //alert("Error login");
+                                }
+                            });
+                        }
+                        else {
+                            Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                        }
+                        Todaytable_Append += "<td style='width:200px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                        Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                        Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                        Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                        Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                        Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                        var timeString = Todaytable[i].Time;
+                        var H = +timeString.substr(0, 2);
+                        var h = H % 12 || 12;
+                        var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                        timeString = h + timeString.substr(2, 3) + ampm;
+
+                        var timeString1 = Todaytable[i].ToTime;
+                        var H1 = +timeString1.substr(0, 2);
+                        var h1 = H1 % 12 || 12;
+                        var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                        timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                        if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked In") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked Out") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                            var timeString3 = Todaytable[i].ActualOutTime;
+                            var H3 = +timeString3.substr(0, 2);
+                            var h3 = H3 % 12 || 12;
+                            var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                            timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                        }
+                        else {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+
+                        if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+
+
+                        // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                        //    Todaytable_Append += "<td></td>";
+                        //}
+                        else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        Todaytable_Append += "</tr>";
+                    }
+                }
+                else {
+                    $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                    $("#Tableview tbody tr td").css("border", "none");
+                    Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                }
+                $("#Todaytablebody").html(Todaytable_Append);
+                $('.scroll-slim').slimScroll({
+                    height: '444px',
+                    width: '100%'
+                });
+                var arrOfTable1 = [],
+                    i = 0;
+
+                $('.Tableview:eq(0) td').each(function () {
+                    mWid = $(this).width();
+                    arrOfTable1.push(mWid);
+                });
+
+                $('.Tableview:eq(1) td').each(function () {
+                    $(this).css("min-width", arrOfTable1[i] + "px");
+                    i++;
+                }); 
+                $("#fade").hide();
+                $("#modal").hide();
+                //$('#Tableview').DataTable();
+            },
+            error: function (result) {
+                //alert("Error login");
+
+            }
+        });
+    });
+
+    $("#FORTHCOMING").click(function () {
+        $("#fade").show();
+        $("#modal").show();
+        var FromDate = $("#txtfromDate").val();
+        var ToDate = $("#txttoDate").val();
+        var Search = $("#txtserachtext").val();
+        $.ajax({
+            type: "POST",
+            url: "NewTrack.aspx/GetForthComingData",
+            contentType: "application/json;charset=utf-8",
+            data: '{"fromDate":"' + FromDate + '","todate":"' + ToDate + '","search": "' + Search + '"}',
+            dataType: "json",
+            success: function (data) {
+                var Todaytable = JSON.parse(data.d);
+                Todaytable_Append = "";
+                if (Todaytable.length > 0) {
+                    for (var i = 0; i < Todaytable.length; i++) {
+                        if (i % 2 == 0) {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        else {
+                            Todaytable_Append += "<tr style='font:13px Arial-Regular;color:#4b4d4d;background-color:#ffffff;text-align:left;'>";
+                        }
+                        if (Todaytable[i].Name == "Bulk Entries") {
+                            $.ajax({
+                                type: "POST",
+                                url: "NewTrack.aspx/GetBulkCount",
+                                contentType: "application/json;charset=utf-8",
+                                data: '{"vistorDetailsID":"' + Todaytable[i].EncryptDetailsId + '"}',
+                                dataType: "json",
+                                async: false,
+                                success: function (data) {
+                                    var Todaytable1 = JSON.parse(data.d);
+                                    Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + " " + "(" + "<a href='#' style='color:#00b140;text-decoration:underline;' onclick='GetBulkDataforexcel(\"" + Todaytable[i].EncryptDetailsId +"\")' title='Click here to download'>" + Todaytable1 + "</a>" + ")" + "</td>";
+                                },
+                                error: function (result) {
+                                    //alert("Error login");
+                                }
+                            });
+                        }
+                        else {
+                            Todaytable_Append += "<td style='padding-left:10px;width:200px;word-break:break-all;'>" + Todaytable[i].Name + "</td>";
+                        }
+                        Todaytable_Append += "<td style='width:200px;word-break:break-all;'>" + Todaytable[i].Company + "</td>";
+                        Todaytable_Append += "<td style='width:130px;'>" + Todaytable[i].VisitorType + "</td>";
+                        Todaytable_Append += "<td style='width:200px;'>" + Todaytable[i].VisitLocation + "</td>";
+                        Todaytable_Append += "<td style='width:80px;'>" + Todaytable[i].Date + "</td>";
+                        Todaytable_Append += "<td style='width:70px;'>" + Todaytable[i].Time.slice(0, -3) + "</td>";
+                        Todaytable_Append += "<td style='width:75px;'>" + Todaytable[i].ToTime.slice(0, -3) + "</td>";
+                        var timeString = Todaytable[i].Time;
+                        var H = +timeString.substr(0, 2);
+                        var h = H % 12 || 12;
+                        var ampm = (H < 12 || H === 24) ? "AM" : "PM";
+                        timeString = h + timeString.substr(2, 3) + ampm;
+
+                        var timeString1 = Todaytable[i].ToTime;
+                        var H1 = +timeString1.substr(0, 2);
+                        var h1 = H1 % 12 || 12;
+                        var ampm1 = (H1 < 12 || H1 === 24) ? "AM" : "PM";
+                        timeString1 = h1 + timeString1.substr(2, 3) + ampm1;
+                        if (Todaytable[i].RequestStatus == "Yet to arrive") {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked In") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+                        else if (Todaytable[i].RequestStatus == "Checked Out") {
+                            var timeString2 = Todaytable[i].ActualInTime;
+                            var H2 = +timeString2.substr(11, 2);
+                            var h2 = H2 % 12 || 12;
+                            var ampm2 = (H2 < 12 || H2 === 24) ? "AM" : "PM";
+                            timeString2 = h2 + timeString2.substr(13, 3) + ampm2;
+
+                            var timeString3 = Todaytable[i].ActualOutTime;
+                            var H3 = +timeString3.substr(0, 2);
+                            var h3 = H3 % 12 || 12;
+                            var ampm3 = (H3 < 12 || H3 === 24) ? "AM" : "PM";
+                            timeString3 = h3 + timeString3.substr(2, 3) + ampm3;
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Check-in time : " + timeString2 + "<br/>Check-out time :" + timeString3 + "</span></div></td>";
+                            }
+                        }
+                        else {
+                            if (i == 0) {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;height:30px;top:0;bottom:0;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                            else {
+                                Todaytable_Append += "<td style='width:125px;'><div class='tooltip'>" + Todaytable[i].RequestStatus + "<img src='images/New Images/img_trans.gif' style='height:20px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -116px  -172px;cursor:pointer;float:right;margin-left:2px;'/><span class='tooltiptext' style='margin-left:-78px;'>Expected Check-in time : " + timeString + "<br/>Expected Check-out time :" + timeString1 + "</span></div></td>";
+                            }
+                        }
+
+                        if (Todaytable[i].RequestStatus != "Yet to arrive" && Todaytable[i].VisitorType != "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+
+
+                        // else if (Todaytable[i].RequestStatus == "Checked In" && Todaytable[i].VisitorType == "Clients") {
+                        //    Todaytable_Append += "<td></td>";
+                        //}
+                        else if (Todaytable[i].RequestStatus == "Checked Out" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus == "Cancelled" && Todaytable[i].VisitorType == "Client") {
+                            Todaytable_Append += "<td></td>";
+                        }
+                        else if (Todaytable[i].RequestStatus != "Yet to arrive") {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        else {
+                            Todaytable_Append += "<td><img id=" + Todaytable[i].VisitorID + "  title='Edit' src='images/New Images/img_trans.gif' style='height:23px;width:20px;background:url(images/New%20Images/VMS-Icons.png) no-repeat -448px -95px;cursor:pointer;' onclick='GetData(\"" + Todaytable[i].EncryptRequestId + "\",\"" + Todaytable[i].EncryptVisitorId + "\",\"" + Todaytable[i].IsEdit + "\",\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptDataCenterId + "\")' />";
+                            Todaytable_Append += "<img id='tdimgcancel' title='Cancel this request' src='images/New%20Images/img_trans.gif' style='height:20px;width:20px;cursor:pointer; background: url(images/New%20Images/VMS-Icons.png) -203px -96px no-repeat;margin-left:7px;' onclick='DeleteData(\"" + Todaytable[i].EncryptDetailsId + "\",\"" + Todaytable[i].EncryptRequestId + "\")' /></td>";
+                        }
+                        Todaytable_Append += "</tr>";
+                    }
+                }
+                else {
+                    $("#Tableview thead tr td").css("border", "2px solid #dfe9f4");
+                    $("#Tableview tbody tr td").css("border", "none");
+                    Todaytable_Append += "<tr style='height:55px;'><td></td><td></td><td></td><td style='width:180px;font:13px Arial-Regular;color:#4b4d4d;'>No request available</td><td></td><td></td><td></td><td></td><td></td></tr>";
+                }
+                $("#Todaytablebody").html(Todaytable_Append);
+                $('.scroll-slim').slimScroll({
+                    height: '444px',
+                    width: '100%'
+                });
+                var arrOfTable1 = [],
+                    i = 0;
+
+                $('.Tableview:eq(0) td').each(function () {
+                    mWid = $(this).width();
+                    arrOfTable1.push(mWid);
+                });
+
+                $('.Tableview:eq(1) td').each(function () {
+                    $(this).css("min-width", arrOfTable1[i] + "px");
+                    i++;
+                }); 
+                $("#fade").hide();
+                $("#modal").hide();
+                //$('#Tableview').DataTable();
+            },
+            error: function (result) {
+                //alert("Error login");
+
+            }
+        });
+    });
+});
